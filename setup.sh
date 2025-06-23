@@ -25,8 +25,21 @@ echo -e "${YELLOW}Using project: $PROJECT_ID${NC}"
 echo -e "${YELLOW}Enabling required APIs...${NC}"
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable run.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 gcloud services enable secretmanager.googleapis.com
+
+# Create Artifact Registry repository
+REGION="us-central1"
+REPOSITORY="api-repo"
+echo -e "${YELLOW}Creating Artifact Registry repository...${NC}"
+if ! gcloud artifacts repositories describe $REPOSITORY --location=$REGION &>/dev/null; then
+    gcloud artifacts repositories create $REPOSITORY \
+        --repository-format=docker \
+        --location=$REGION \
+        --description="Docker repository for Wavlake API"
+else
+    echo -e "${GREEN}Artifact Registry repository already exists${NC}"
+fi
 
 # Create service account if it doesn't exist
 SERVICE_ACCOUNT="api-service@$PROJECT_ID.iam.gserviceaccount.com"
