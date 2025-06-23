@@ -1,0 +1,31 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/api:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/api:latest',
+      '--build-arg', 'COMMIT_SHA=$COMMIT_SHA',
+      '.'
+    ]
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/api']
+  
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', 'api',
+      '--image', 'gcr.io/$PROJECT_ID/api:$COMMIT_SHA',
+      '--region', '${_REGION}',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA',
+      '--service-account', '${_SERVICE_ACCOUNT}'
+    ]
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE_ACCOUNT: api-service@${PROJECT_ID}.iam.gserviceaccount.com
+
+options:
+  logging: CLOUD_LOGGING_ONLY
