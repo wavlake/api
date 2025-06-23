@@ -1,0 +1,24 @@
+# Ignore local development files
+.git/
+.gitignore
+README.md
+setup.sh
+
+# Go build artifacts
+server
+*.test
+*.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local env files
+.env
+.env.local
