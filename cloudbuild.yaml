@@ -1,16 +1,18 @@
 steps:
+  # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
       '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$COMMIT_SHA',
-      '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
       '--build-arg', 'COMMIT_SHA=$COMMIT_SHA',
       '.'
     ]
   
+  # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api']
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$COMMIT_SHA']
   
+  # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: [
