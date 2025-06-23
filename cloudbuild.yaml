@@ -21,7 +21,7 @@ steps:
       '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA',
+      '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA,GOOGLE_CLOUD_PROJECT=$PROJECT_ID',
       '--service-account', '${_SERVICE_ACCOUNT}'
     ]
 
