@@ -51,6 +51,11 @@ func (h *AuthHandlers) LinkPubkey(c *gin.Context) {
 	pubkey := nostrPubkey.(string)
 	uid := firebaseUID.(string)
 
+	log.Printf("Firebase UID: %v", firebaseUID)
+	log.Printf("Nostr Pubkey: %v", nostrPubkey)
+	log.Printf("Auth header: %v", c.GetHeader("Authorization"))
+	log.Printf("Nostr Auth header: %v", c.GetHeader("X-Nostr-Authorization"))
+
 	// Optional: validate request body pubkey matches auth pubkey
 	var req LinkPubkeyRequest
 	if err := c.ShouldBindJSON(&req); err == nil && req.PubKey != "" {
