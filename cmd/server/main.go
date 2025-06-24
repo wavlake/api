@@ -98,7 +98,7 @@ func main() {
 		"Content-Type", 
 		"Accept",
 		"Authorization",
-		"X-Nostr-Auth",
+		"X-Nostr-Authorization",
 		"X-Requested-With",
 	}
 	config.AllowCredentials = true
