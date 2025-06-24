@@ -29,7 +29,11 @@ func Heartbeat(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Log error but response headers are already sent
+		// In production, this would be logged to your logging system
+		_ = err
+	}
 }
 
 func NotFound(w http.ResponseWriter, r *http.Request) {
