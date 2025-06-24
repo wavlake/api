@@ -2,7 +2,6 @@ package cloudfunction
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,8 +9,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"cloud.google.com/go/storage"
 )
 
 // GCSEvent represents a Cloud Storage event
