@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"

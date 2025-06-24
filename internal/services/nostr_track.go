@@ -146,8 +146,12 @@ func (s *NostrTrackService) GetTracksByFirebaseUID(ctx context.Context, firebase
 func (s *NostrTrackService) UpdateTrack(ctx context.Context, trackID string, updates map[string]interface{}) error {
 	updates["updated_at"] = time.Now()
 
-	_, err := s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Update(ctx, 
-		firestore.UpdateMapFromMap(updates))
+	var updatePaths []firestore.Update
+	for path, value := range updates {
+		updatePaths = append(updatePaths, firestore.Update{Path: path, Value: value})
+	}
+	
+	_, err := s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Update(ctx, updatePaths)
 	if err != nil {
 		return fmt.Errorf("failed to update track: %w", err)
 	}

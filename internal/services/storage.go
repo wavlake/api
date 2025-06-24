@@ -52,9 +52,6 @@ func (s *StorageService) Close() error {
 
 // GeneratePresignedURL creates a presigned URL for uploading files
 func (s *StorageService) GeneratePresignedURL(ctx context.Context, objectName string, expiration time.Duration) (string, error) {
-	bucket := s.client.Bucket(s.bucketName)
-	obj := bucket.Object(objectName)
-
 	// Generate a presigned URL for PUT operations
 	opts := &storage.SignedURLOptions{
 		Scheme:  storage.SigningSchemeV4,
@@ -63,7 +60,7 @@ func (s *StorageService) GeneratePresignedURL(ctx context.Context, objectName st
 		Expires: time.Now().Add(expiration),
 	}
 
-	url, err := obj.SignedURL(opts)
+	url, err := s.client.Bucket(s.bucketName).SignedURL(objectName, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
