@@ -166,11 +166,11 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 			DisplayPubkey: p.DisplayPubkey,
 			LinkedAt:      p.LinkedAt.Format(time.RFC3339),
 		}
-		
+
 		if !p.LastUsedAt.IsZero() {
 			info.LastUsedAt = p.LastUsedAt.Format(time.RFC3339)
 		}
-		
+
 		linkedPubkeys = append(linkedPubkeys, info)
 	}
 

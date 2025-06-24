@@ -34,7 +34,7 @@ func main() {
 	// Initialize Firebase
 	var firebaseApp *firebase.App
 	var err error
-	
+
 	// Try to use service account key if available, otherwise use default credentials
 	if keyPath := os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"); keyPath != "" {
 		opt := option.WithCredentialsFile(keyPath)
@@ -42,7 +42,7 @@ func main() {
 	} else {
 		firebaseApp, err = firebase.NewApp(ctx, nil)
 	}
-	
+
 	if err != nil {
 		log.Fatalf("Failed to initialize Firebase: %v", err)
 	}
@@ -78,7 +78,7 @@ func main() {
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	
+
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
@@ -95,7 +95,7 @@ func main() {
 		// Firebase auth only endpoints
 		authGroup.GET("/get-linked-pubkeys", firebaseMiddleware.Middleware(), authHandlers.GetLinkedPubkeys)
 		authGroup.POST("/unlink-pubkey", firebaseMiddleware.Middleware(), authHandlers.UnlinkPubkey)
-		
+
 		// Dual auth required endpoint
 		authGroup.POST("/link-pubkey", dualAuthMiddleware.Middleware(), authHandlers.LinkPubkey)
 	}

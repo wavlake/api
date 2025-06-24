@@ -35,12 +35,12 @@ type FirebaseMiddlewareTestSuite struct {
 
 func (suite *FirebaseMiddlewareTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
-	
+
 	suite.mockAuthClient = &MockFirebaseAuthClient{}
-	
+
 	// Note: In real tests, we'd need to properly mock the Firebase auth client
 	// For now, we'll test the logic around token extraction and validation
-	
+
 	suite.router = gin.New()
 	suite.router.Use(suite.createTestMiddleware())
 	suite.router.GET("/test", func(c *gin.Context) {
@@ -93,9 +93,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestExtractBearerToken() {
 		{"bearer valid-token", "valid-token"}, // Case insensitive
 		{"Bearer ", ""},                       // Empty token
 		{"", ""},                              // No header
-		{"Basic dXNlcjpwYXNz", ""},           // Wrong auth type
+		{"Basic dXNlcjpwYXNz", ""},            // Wrong auth type
 		{"Bearer", ""},                        // Missing token part
-		{"Bearer token1 token2", ""},             // Too many parts - invalid
+		{"Bearer token1 token2", ""},          // Too many parts - invalid
 	}
 
 	for _, test := range tests {
@@ -108,9 +108,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_ValidToken() {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer valid-token")
 	w := httptest.NewRecorder()
-	
+
 	suite.router.ServeHTTP(w, req)
-	
+
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 	assert.Contains(suite.T(), w.Body.String(), "test-firebase-uid")
 }
@@ -118,9 +118,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_ValidToken() {
 func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_MissingToken() {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
-	
+
 	suite.router.ServeHTTP(w, req)
-	
+
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
 	assert.Contains(suite.T(), w.Body.String(), "Missing authorization token")
 }
@@ -129,9 +129,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_InvalidToken() {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
 	w := httptest.NewRecorder()
-	
+
 	suite.router.ServeHTTP(w, req)
-	
+
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
 	assert.Contains(suite.T(), w.Body.String(), "Invalid Firebase token")
 }
@@ -140,9 +140,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_WrongAuthType() {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
 	w := httptest.NewRecorder()
-	
+
 	suite.router.ServeHTTP(w, req)
-	
+
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
 	assert.Contains(suite.T(), w.Body.String(), "Missing authorization token")
 }
@@ -151,9 +151,9 @@ func (suite *FirebaseMiddlewareTestSuite) TestMiddleware_EmptyBearerToken() {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.Header.Set("Authorization", "Bearer ")
 	w := httptest.NewRecorder()
-	
+
 	suite.router.ServeHTTP(w, req)
-	
+
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
 	assert.Contains(suite.T(), w.Body.String(), "Missing authorization token")
 }

@@ -35,7 +35,7 @@ func (s *UserService) LinkPubkeyToUser(ctx context.Context, pubkey, firebaseUID 
 		// Create or update User record
 		userRef := s.firestoreClient.Collection("users").Doc(firebaseUID)
 		userDoc, err := tx.Get(userRef)
-		
+
 		var user models.User
 		if err != nil {
 			// Create new user
@@ -50,7 +50,7 @@ func (s *UserService) LinkPubkeyToUser(ctx context.Context, pubkey, firebaseUID 
 			if err := userDoc.DataTo(&user); err != nil {
 				return fmt.Errorf("failed to parse user data: %w", err)
 			}
-			
+
 			// Add pubkey if not already present
 			if !contains(user.ActivePubkeys, pubkey) {
 				user.ActivePubkeys = append(user.ActivePubkeys, pubkey)

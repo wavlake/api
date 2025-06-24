@@ -43,13 +43,13 @@ func (suite *UserServiceTestSuite) TestFormatDisplayPubkey() {
 
 func (suite *UserServiceTestSuite) TestContains() {
 	slice := []string{"apple", "banana", "cherry"}
-	
+
 	assert.True(suite.T(), contains(slice, "apple"))
 	assert.True(suite.T(), contains(slice, "banana"))
 	assert.True(suite.T(), contains(slice, "cherry"))
 	assert.False(suite.T(), contains(slice, "orange"))
 	assert.False(suite.T(), contains(slice, ""))
-	
+
 	// Test empty slice
 	assert.False(suite.T(), contains([]string{}, "apple"))
 }
@@ -95,10 +95,10 @@ func (suite *UserServiceTestSuite) TestRemoveString() {
 
 // Test business logic validation
 func (suite *UserServiceTestSuite) TestValidateBusinessRules() {
-	
+
 	// Test cases that would validate business logic
 	// Note: These tests focus on the logic, not the database operations
-	
+
 	testCases := []struct {
 		name        string
 		firebaseUID string
@@ -132,7 +132,7 @@ func (suite *UserServiceTestSuite) TestValidateBusinessRules() {
 		suite.T().Run(tc.name, func(t *testing.T) {
 			// This would be where we test business logic validation
 			// For now, we'll test that the inputs are processed correctly
-			
+
 			if tc.firebaseUID == "" || tc.pubkey == "" {
 				// In a real implementation, we'd expect validation errors
 				if tc.expectError {
@@ -150,7 +150,7 @@ func (suite *UserServiceTestSuite) TestValidateBusinessRules() {
 // Test model creation
 func (suite *UserServiceTestSuite) TestModelCreation() {
 	now := time.Now()
-	
+
 	// Test User model
 	user := models.User{
 		FirebaseUID:   "test-firebase-uid",
@@ -158,12 +158,12 @@ func (suite *UserServiceTestSuite) TestModelCreation() {
 		UpdatedAt:     now,
 		ActivePubkeys: []string{"pubkey1", "pubkey2"},
 	}
-	
+
 	assert.Equal(suite.T(), "test-firebase-uid", user.FirebaseUID)
 	assert.Equal(suite.T(), 2, len(user.ActivePubkeys))
 	assert.Contains(suite.T(), user.ActivePubkeys, "pubkey1")
 	assert.Contains(suite.T(), user.ActivePubkeys, "pubkey2")
-	
+
 	// Test NostrAuth model
 	nostrAuth := models.NostrAuth{
 		Pubkey:        "test-pubkey-123",
@@ -174,7 +174,7 @@ func (suite *UserServiceTestSuite) TestModelCreation() {
 		LinkedAt:      now,
 		DisplayPubkey: formatDisplayPubkey("test-pubkey-123"),
 	}
-	
+
 	assert.Equal(suite.T(), "test-pubkey-123", nostrAuth.Pubkey)
 	assert.Equal(suite.T(), "test-firebase-uid", nostrAuth.FirebaseUID)
 	assert.True(suite.T(), nostrAuth.Active)
@@ -187,16 +187,16 @@ func (suite *UserServiceTestSuite) TestEdgeCases() {
 	longPubkey := "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
 	displayPubkey := formatDisplayPubkey(longPubkey)
 	assert.Equal(suite.T(), "abcdef12...34567890", displayPubkey)
-	
+
 	// Test with exactly 16 character pubkey
 	exactPubkey := "1234567890123456"
 	displayExact := formatDisplayPubkey(exactPubkey)
 	assert.Equal(suite.T(), exactPubkey, displayExact)
-	
+
 	// Test contains with duplicate items
 	slice := []string{"apple", "apple", "banana"}
 	assert.True(suite.T(), contains(slice, "apple"))
-	
+
 	// Test removeString removes all instances
 	result := removeString(slice, "apple")
 	assert.Equal(suite.T(), []string{"banana"}, result)

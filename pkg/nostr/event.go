@@ -21,7 +21,7 @@ type Event struct {
 func (e *Event) Verify() bool {
 	serialized := e.serialize()
 	hash := sha256.Sum256([]byte(serialized))
-	
+
 	if hex.EncodeToString(hash[:]) != e.ID {
 		return false
 	}
@@ -58,7 +58,7 @@ func (e *Event) serialize() string {
 		e.Tags,
 		e.Content,
 	}
-	
+
 	serialized, _ := json.Marshal(arr)
 	return string(serialized)
 }

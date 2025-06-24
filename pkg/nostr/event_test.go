@@ -29,24 +29,24 @@ func (suite *NostrEventTestSuite) TestEventSerialization() {
 	}
 
 	serialized := event.serialize()
-	
+
 	// Verify the serialization format
 	var parsed []interface{}
 	err := json.Unmarshal([]byte(serialized), &parsed)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), parsed, 6)
-	
+
 	// Check the order and values
-	assert.Equal(suite.T(), float64(0), parsed[0])              // Always 0
-	assert.Equal(suite.T(), "test-pubkey", parsed[1])           // PubKey
-	assert.Equal(suite.T(), float64(1682327852), parsed[2])     // CreatedAt
-	assert.Equal(suite.T(), float64(27235), parsed[3])          // Kind
-	
+	assert.Equal(suite.T(), float64(0), parsed[0])          // Always 0
+	assert.Equal(suite.T(), "test-pubkey", parsed[1])       // PubKey
+	assert.Equal(suite.T(), float64(1682327852), parsed[2]) // CreatedAt
+	assert.Equal(suite.T(), float64(27235), parsed[3])      // Kind
+
 	// Tags comparison - convert interface{} to proper format for comparison
 	tagsInterface := parsed[4].([]interface{})
 	assert.Len(suite.T(), tagsInterface, 2)
-	
-	assert.Equal(suite.T(), "", parsed[5])                      // Content
+
+	assert.Equal(suite.T(), "", parsed[5]) // Content
 }
 
 func (suite *NostrEventTestSuite) TestEventVerify_InvalidID() {
@@ -110,7 +110,7 @@ func (suite *NostrEventTestSuite) TestEventVerify_ValidExample() {
 	// Test that we can serialize the event (structure test)
 	serialized := event.serialize()
 	assert.NotEmpty(suite.T(), serialized)
-	
+
 	// Test basic verification logic (will fail due to signature, but tests the flow)
 	result := event.Verify()
 	assert.False(suite.T(), result) // Expected to fail since we don't have matching signature
@@ -185,15 +185,15 @@ func (suite *NostrEventTestSuite) TestEmptyTagsAndContent() {
 	}
 
 	serialized := event.serialize()
-	
+
 	var parsed []interface{}
 	err := json.Unmarshal([]byte(serialized), &parsed)
 	assert.NoError(suite.T(), err)
-	
+
 	// Check that empty tags is an empty array, not null
 	tags := parsed[4].([]interface{})
 	assert.Len(suite.T(), tags, 0)
-	
+
 	// Check that empty content is empty string
 	assert.Equal(suite.T(), "", parsed[5])
 }

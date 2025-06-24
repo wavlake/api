@@ -26,12 +26,12 @@ type AuthHandlerTestSuite struct {
 
 func (suite *AuthHandlerTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
-	
+
 	suite.userService = &mocks.MockUserService{}
 	suite.handlers = NewAuthHandlers(suite.userService)
-	
+
 	suite.router = gin.New()
-	
+
 	// Setup routes with mock middleware that sets auth context
 	auth := suite.router.Group("/v1/auth")
 	{
@@ -113,7 +113,7 @@ func (suite *AuthHandlerTestSuite) TestGetLinkedPubkeys_ServiceError() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Equal(suite.T(), "Failed to retrieve linked pubkeys", response["error"])
@@ -124,7 +124,7 @@ func (suite *AuthHandlerTestSuite) TestUnlinkPubkey_Success() {
 	requestBody := UnlinkPubkeyRequest{
 		PubKey: "test-pubkey-to-unlink",
 	}
-	
+
 	suite.userService.On("UnlinkPubkeyFromUser", mock.Anything, "test-pubkey-to-unlink", "test-firebase-uid").Return(nil)
 
 	jsonBody, _ := json.Marshal(requestBody)
@@ -150,7 +150,7 @@ func (suite *AuthHandlerTestSuite) TestUnlinkPubkey_InvalidRequest() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Equal(suite.T(), "Invalid request body", response["error"])
@@ -160,7 +160,7 @@ func (suite *AuthHandlerTestSuite) TestUnlinkPubkey_ServiceError() {
 	requestBody := UnlinkPubkeyRequest{
 		PubKey: "test-pubkey",
 	}
-	
+
 	suite.userService.On("UnlinkPubkeyFromUser", mock.Anything, "test-pubkey", "test-firebase-uid").Return(errors.New("pubkey not found"))
 
 	jsonBody, _ := json.Marshal(requestBody)
@@ -170,7 +170,7 @@ func (suite *AuthHandlerTestSuite) TestUnlinkPubkey_ServiceError() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Equal(suite.T(), "pubkey not found", response["error"])
@@ -200,7 +200,7 @@ func (suite *AuthHandlerTestSuite) TestLinkPubkey_WithValidationSuccess() {
 	requestBody := LinkPubkeyRequest{
 		PubKey: "test-pubkey-123", // Should match the one from dual auth middleware
 	}
-	
+
 	suite.userService.On("LinkPubkeyToUser", mock.Anything, "test-pubkey-123", "test-firebase-uid").Return(nil)
 
 	jsonBody, _ := json.Marshal(requestBody)
@@ -229,7 +229,7 @@ func (suite *AuthHandlerTestSuite) TestLinkPubkey_PubkeyMismatch() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Equal(suite.T(), "Request pubkey does not match authenticated pubkey", response["error"])
@@ -244,7 +244,7 @@ func (suite *AuthHandlerTestSuite) TestLinkPubkey_ServiceError() {
 	suite.router.ServeHTTP(w, req)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Equal(suite.T(), "pubkey already linked to different user", response["error"])
@@ -280,7 +280,7 @@ func (suite *AuthHandlerTestSuite) TestEndpoints_MissingAuth() {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
-		
+
 		var response map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.Contains(suite.T(), response["error"].(string), "authentication")
