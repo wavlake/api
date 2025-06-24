@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/firestore v1.18.0
 	firebase.google.com/go/v4 v4.16.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.1
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/api v0.238.0

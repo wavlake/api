@@ -11,6 +11,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go/v4"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/wavlake/api/internal/auth"
 	"github.com/wavlake/api/internal/handlers"
@@ -82,6 +83,26 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	
+	// Configure CORS
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{
+		"http://localhost:8080",     // Development
+		"http://localhost:3000",     // Alternative dev port
+		"https://wavlake.com",       // Production
+		"https://*.wavlake.com",     // Subdomains
+	}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+	config.AllowHeaders = []string{
+		"Origin",
+		"Content-Type", 
+		"Accept",
+		"Authorization",
+		"X-Nostr-Auth",
+		"X-Requested-With",
+	}
+	config.AllowCredentials = true
+	router.Use(cors.New(config))
 
 	// Heartbeat endpoint (no auth required)
 	router.GET("/heartbeat", func(c *gin.Context) {
