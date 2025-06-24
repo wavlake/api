@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
 )
@@ -21,32 +22,44 @@ type Event struct {
 func (e *Event) Verify() bool {
 	serialized := e.serialize()
 	hash := sha256.Sum256([]byte(serialized))
+	computedID := hex.EncodeToString(hash[:])
 
-	if hex.EncodeToString(hash[:]) != e.ID {
+	log.Printf("Event Verify Debug - Serialized: %s", serialized)
+	log.Printf("Event Verify Debug - Computed ID: %s", computedID)
+	log.Printf("Event Verify Debug - Event ID: %s", e.ID)
+
+	if computedID != e.ID {
+		log.Printf("Event Verify Debug - ID mismatch!")
 		return false
 	}
 
 	pubKeyBytes, err := hex.DecodeString(e.PubKey)
 	if err != nil || len(pubKeyBytes) != 32 {
+		log.Printf("Event Verify Debug - PubKey decode error: %v, len: %d", err, len(pubKeyBytes))
 		return false
 	}
 
 	sigBytes, err := hex.DecodeString(e.Sig)
 	if err != nil || len(sigBytes) != 64 {
+		log.Printf("Event Verify Debug - Signature decode error: %v, len: %d", err, len(sigBytes))
 		return false
 	}
 
 	publicKey, err := schnorr.ParsePubKey(pubKeyBytes)
 	if err != nil {
+		log.Printf("Event Verify Debug - PubKey parse error: %v", err)
 		return false
 	}
 
 	signature, err := schnorr.ParseSignature(sigBytes)
 	if err != nil {
+		log.Printf("Event Verify Debug - Signature parse error: %v", err)
 		return false
 	}
 
-	return signature.Verify(hash[:], publicKey)
+	isValid := signature.Verify(hash[:], publicKey)
+	log.Printf("Event Verify Debug - Signature verification result: %t", isValid)
+	return isValid
 }
 
 func (e *Event) serialize() string {
