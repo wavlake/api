@@ -28,12 +28,16 @@ func main() {
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
-		log.Fatal("GOOGLE_CLOUD_PROJECT environment variable must be set")
+		log.Println("Warning: GOOGLE_CLOUD_PROJECT environment variable not set")
+		// For local development, you might want to set a default or exit gracefully
+		projectID = "default-project" // Or handle this appropriately
 	}
 
 	bucketName := os.Getenv("GCS_BUCKET_NAME")
 	if bucketName == "" {
-		log.Fatal("GCS_BUCKET_NAME environment variable must be set")
+		log.Println("Warning: GCS_BUCKET_NAME environment variable not set")
+		// For local development, you might want to set a default or exit gracefully
+		bucketName = "default-bucket" // Or handle this appropriately
 	}
 
 	tempDir := os.Getenv("TEMP_DIR")
