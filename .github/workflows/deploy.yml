@@ -40,7 +40,7 @@ jobs:
       run: go test -v -race ./...
 
     - name: Run security scan
-      uses: securecodewarrior/github-action-gosec@master
+      uses: securego/gosec@master
       with:
         args: './...'
 
