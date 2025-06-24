@@ -2,12 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iamcredentials/v1"
 	"google.golang.org/api/option"
 )
 
@@ -52,12 +54,20 @@ func (s *StorageService) Close() error {
 
 // GeneratePresignedURL creates a presigned URL for uploading files
 func (s *StorageService) GeneratePresignedURL(ctx context.Context, objectName string, expiration time.Duration) (string, error) {
+	// For Cloud Run with default credentials, we need to specify the service account email
+	serviceAccountEmail := "api-service@wavlake-alpha.iam.gserviceaccount.com"
+	
 	// Generate a presigned URL for PUT operations
 	opts := &storage.SignedURLOptions{
-		Scheme:  storage.SigningSchemeV4,
-		Method:  "PUT",
-		Headers: []string{"Content-Type"},
-		Expires: time.Now().Add(expiration),
+		Scheme:           storage.SigningSchemeV4,
+		Method:           "PUT",
+		Headers:          []string{"Content-Type"},
+		Expires:          time.Now().Add(expiration),
+		GoogleAccessID:   serviceAccountEmail,
+		SignBytes: func(b []byte) ([]byte, error) {
+			// Use the IAM service to sign the bytes
+			return signBytes(ctx, serviceAccountEmail, b)
+		},
 	}
 
 	url, err := s.client.Bucket(s.bucketName).SignedURL(objectName, opts)
@@ -121,4 +131,33 @@ func (s *StorageService) GetObjectMetadata(ctx context.Context, objectName strin
 		return nil, fmt.Errorf("failed to get object metadata: %w", err)
 	}
 	return attrs, nil
+}
+
+// signBytes uses the Service Account Credentials API to sign bytes with the service account
+func signBytes(ctx context.Context, serviceAccountEmail string, bytesToSign []byte) ([]byte, error) {
+	// Create IAM Credentials service client
+	credentialsService, err := iamcredentials.NewService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IAM credentials service: %w", err)
+	}
+
+	// Prepare the sign request
+	resourceName := fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail)
+	request := &iamcredentials.SignBlobRequest{
+		Payload: base64.StdEncoding.EncodeToString(bytesToSign),
+	}
+
+	// Sign the bytes
+	response, err := credentialsService.Projects.ServiceAccounts.SignBlob(resourceName, request).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign bytes: %w", err)
+	}
+
+	// Decode the signature
+	signature, err := base64.StdEncoding.DecodeString(response.SignedBlob)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode signature: %w", err)
+	}
+
+	return signature, nil
 }
