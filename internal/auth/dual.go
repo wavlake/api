@@ -12,6 +12,7 @@ import (
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/gin-gonic/gin"
+	gonostr "github.com/nbd-wtf/go-nostr"
 	"github.com/wavlake/api/pkg/nostr"
 )
 
@@ -77,10 +78,12 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 		return nil, fmt.Errorf("invalid base64 encoding: %w", err)
 	}
 
-	var event nostr.Event
-	if err := json.Unmarshal(eventData, &event); err != nil {
+	var gonostrEvent gonostr.Event
+	if err := json.Unmarshal(eventData, &gonostrEvent); err != nil {
 		return nil, fmt.Errorf("invalid event JSON: %w", err)
 	}
+	
+	event := &nostr.Event{Event: &gonostrEvent}
 
 	// Validate NIP-98 requirements
 	if event.Kind != 27235 {
@@ -88,7 +91,8 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 	}
 
 	now := time.Now().Unix()
-	if now-event.CreatedAt > 60 || event.CreatedAt > now+60 {
+	createdAt := int64(event.CreatedAt)
+	if now-createdAt > 60 || createdAt > now+60 {
 		return nil, fmt.Errorf("event timestamp out of range")
 	}
 
@@ -130,5 +134,5 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 		return nil, fmt.Errorf("invalid event signature")
 	}
 
-	return &event, nil
+	return event, nil
 }

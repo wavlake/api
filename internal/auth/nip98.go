@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	gonostr "github.com/nbd-wtf/go-nostr"
 	"github.com/wavlake/api/internal/models"
 	"github.com/wavlake/api/pkg/nostr"
 	"google.golang.org/api/iterator"
@@ -60,11 +61,13 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		var event nostr.Event
-		if err := json.Unmarshal(eventData, &event); err != nil {
+		var gonostrEvent gonostr.Event
+		if err := json.Unmarshal(eventData, &gonostrEvent); err != nil {
 			http.Error(w, "Invalid event JSON", http.StatusUnauthorized)
 			return
 		}
+		
+		event := &nostr.Event{Event: &gonostrEvent}
 
 		if event.Kind != 27235 {
 			http.Error(w, "Invalid event kind", http.StatusUnauthorized)
@@ -72,7 +75,8 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 		}
 
 		now := time.Now().Unix()
-		if now-event.CreatedAt > 60 || event.CreatedAt > now+60 {
+		createdAt := int64(event.CreatedAt)
+		if now-createdAt > 60 || createdAt > now+60 {
 			http.Error(w, "Event timestamp out of range", http.StatusUnauthorized)
 			return
 		}
