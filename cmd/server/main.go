@@ -16,6 +16,7 @@ import (
 	"github.com/wavlake/api/internal/auth"
 	"github.com/wavlake/api/internal/handlers"
 	"github.com/wavlake/api/internal/services"
+	"github.com/wavlake/api/internal/utils"
 	"google.golang.org/api/option"
 )
 
@@ -28,6 +29,16 @@ func main() {
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
 		log.Fatal("GOOGLE_CLOUD_PROJECT environment variable must be set")
+	}
+
+	bucketName := os.Getenv("GCS_BUCKET_NAME")
+	if bucketName == "" {
+		log.Fatal("GCS_BUCKET_NAME environment variable must be set")
+	}
+
+	tempDir := os.Getenv("TEMP_DIR")
+	if tempDir == "" {
+		tempDir = "/tmp"
 	}
 
 	ctx := context.Background()
@@ -63,6 +74,15 @@ func main() {
 
 	// Initialize services
 	userService := services.NewUserService(firestoreClient)
+	storageService, err := services.NewStorageService(ctx, bucketName)
+	if err != nil {
+		log.Fatalf("Failed to initialize storage service: %v", err)
+	}
+	defer storageService.Close()
+
+	nostrTrackService := services.NewNostrTrackService(firestoreClient, storageService)
+	audioProcessor := utils.NewAudioProcessor(tempDir)
+	processingService := services.NewProcessingService(storageService, nostrTrackService, audioProcessor, tempDir)
 
 	// Initialize middleware
 	firebaseMiddleware := auth.NewFirebaseMiddleware(firebaseAuth)
@@ -74,6 +94,7 @@ func main() {
 
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(userService)
+	tracksHandler := handlers.NewTracksHandler(nostrTrackService, processingService, audioProcessor)
 
 	// Set up Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -134,6 +155,81 @@ func main() {
 		// Add NIP-98 protected endpoints here in the future
 	}
 
+	// Tracks endpoints
+	tracksGroup := v1.Group("/tracks")
+	{
+		// Public endpoints
+		tracksGroup.GET("/:id", tracksHandler.GetTrack)
+
+		// Webhook endpoint for processing notifications
+		tracksGroup.POST("/webhook/process", tracksHandler.ProcessTrackWebhook)
+
+		// NIP-98 authenticated endpoints
+		tracksGroup.POST("/nostr", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Convert to Gin and call handler
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			// Copy context values from NIP-98 middleware
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.CreateTrackNostr(c)
+		}))))
+
+		tracksGroup.GET("/my", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.GetMyTracks(c)
+		}))))
+
+		tracksGroup.DELETE("/:id", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.DeleteTrack(c)
+		}))))
+
+		// Track status endpoint
+		tracksGroup.GET("/:id/status", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.GetTrackStatus(c)
+		}))))
+
+		// Manual processing trigger
+		tracksGroup.POST("/:id/process", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.TriggerProcessing(c)
+		}))))
+	}
+
 	// Start server
 	log.Printf("Starting server on port %s", port)
 	log.Printf("Endpoints available:")
@@ -141,6 +237,13 @@ func main() {
 	log.Printf("  GET  /v1/auth/get-linked-pubkeys (Firebase auth)")
 	log.Printf("  POST /v1/auth/unlink-pubkey (Firebase auth)")
 	log.Printf("  POST /v1/auth/link-pubkey (Dual auth: Firebase + NIP-98)")
+	log.Printf("  GET  /v1/tracks/:id (Public track info)")
+	log.Printf("  POST /v1/tracks/webhook/process (Processing webhook)")
+	log.Printf("  POST /v1/tracks/nostr (NIP-98 auth: Create track)")
+	log.Printf("  GET  /v1/tracks/my (NIP-98 auth: Get my tracks)")
+	log.Printf("  DELETE /v1/tracks/:id (NIP-98 auth: Delete track)")
+	log.Printf("  GET  /v1/tracks/:id/status (NIP-98 auth: Get track status)")
+	log.Printf("  POST /v1/tracks/:id/process (NIP-98 auth: Trigger processing)")
 
 	go func() {
 		if err := router.Run(":" + port); err != nil {
