@@ -66,7 +66,7 @@ echo ""
 
 # Test 4: Cloud Function connectivity
 echo -e "${YELLOW}Test 4: Cloud Function status${NC}"
-cf_status=$(gcloud functions describe process-audio-upload --region=us-central1 --format="value(status)" 2>/dev/null || echo "NOT_FOUND")
+cf_status=$(gcloud functions describe process-audio-upload --region=us-central1 --format="value(state)" 2>/dev/null || echo "NOT_FOUND")
 
 if [ "$cf_status" = "ACTIVE" ]; then
     echo -e "${GREEN}✅ Cloud Function: ACTIVE${NC}"
@@ -94,8 +94,18 @@ echo ""
 
 # Test 6: GCS bucket accessibility
 echo -e "${YELLOW}Test 6: GCS bucket access${NC}"
-if gsutil ls "gs://$GCS_BUCKET_NAME/tracks/" > /dev/null 2>&1; then
+if gsutil ls "gs://$GCS_BUCKET_NAME/" > /dev/null 2>&1; then
     echo -e "${GREEN}✅ GCS bucket: Accessible${NC}"
+    
+    # Check if we can write to the bucket
+    echo "test" > /tmp/bucket-test.txt
+    if gsutil cp /tmp/bucket-test.txt "gs://$GCS_BUCKET_NAME/tracks/original/bucket-test.txt" > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ GCS bucket: Writable${NC}"
+        gsutil rm "gs://$GCS_BUCKET_NAME/tracks/original/bucket-test.txt" > /dev/null 2>&1
+    else
+        echo -e "${RED}❌ GCS bucket: Not writable${NC}"
+    fi
+    rm /tmp/bucket-test.txt 2>/dev/null
 else
     echo -e "${RED}❌ GCS bucket: Not accessible${NC}"
 fi
