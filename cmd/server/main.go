@@ -113,9 +113,6 @@ func main() {
 	}
 
 	// Start server
-	srv := &gin.Engine{}
-	*srv = *router
-
 	log.Printf("Starting server on port %s", port)
 	log.Printf("Endpoints available:")
 	log.Printf("  GET  /heartbeat")
