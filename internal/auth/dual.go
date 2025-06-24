@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -107,17 +108,25 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 	if r.TLS != nil {
 		scheme = "https"
 	}
+	// Check X-Forwarded-Proto header for proxy/load balancer setups (like Cloud Run)
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		scheme = "https"
+	}
 	fullURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, r.RequestURI)
 
+	log.Printf("NIP-98 Debug - URL check: fullURL='%s', urlTag='%s'", fullURL, urlTag)
 	if urlTag != fullURL {
 		return nil, fmt.Errorf("URL mismatch: expected %s, got %s", fullURL, urlTag)
 	}
 
+	log.Printf("NIP-98 Debug - Method check: method='%s', methodTag='%s'", r.Method, methodTag)
 	if methodTag != r.Method {
 		return nil, fmt.Errorf("method mismatch: expected %s, got %s", r.Method, methodTag)
 	}
 
+	log.Printf("NIP-98 Debug - About to verify signature for event ID: %s", event.ID)
 	if !event.Verify() {
+		log.Printf("NIP-98 Debug - Signature verification failed for event: %+v", event)
 		return nil, fmt.Errorf("invalid event signature")
 	}
 

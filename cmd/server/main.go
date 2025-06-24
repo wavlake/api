@@ -89,6 +89,7 @@ func main() {
 	config.AllowOrigins = []string{
 		"http://localhost:8080",     // Development
 		"http://localhost:3000",     // Alternative dev port
+		"http://localhost:8083",     // Another dev port
 		"https://wavlake.com",       // Production
 		"https://*.wavlake.com",     // Subdomains
 	}

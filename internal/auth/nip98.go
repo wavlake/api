@@ -93,6 +93,10 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 		if r.TLS != nil {
 			scheme = "https"
 		}
+		// Check X-Forwarded-Proto header for proxy/load balancer setups (like Cloud Run)
+		if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+			scheme = "https"
+		}
 		fullURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, r.RequestURI)
 
 		if urlTag != fullURL {
