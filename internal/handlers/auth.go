@@ -126,10 +126,9 @@ func (h *AuthHandlers) UnlinkPubkey(c *gin.Context) {
 
 // LinkedPubkeyInfo represents pubkey information in the response
 type LinkedPubkeyInfo struct {
-	PubKey        string `json:"pubkey"`
-	DisplayPubkey string `json:"display_pubkey"`
-	LinkedAt      string `json:"linked_at"`
-	LastUsedAt    string `json:"last_used_at,omitempty"`
+	PubKey     string `json:"pubkey"`
+	LinkedAt   string `json:"linked_at"`
+	LastUsedAt string `json:"last_used_at,omitempty"`
 }
 
 // GetLinkedPubkeysResponse represents the response for getting linked pubkeys
@@ -154,7 +153,12 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 	// Get linked pubkeys for the user
 	pubkeys, err := h.userService.GetLinkedPubkeys(c.Request.Context(), uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve linked pubkeys"})
+		// Log the actual error for debugging
+		c.Header("X-Debug-Error", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to retrieve linked pubkeys",
+			"debug": err.Error(),
+		})
 		return
 	}
 
@@ -162,9 +166,8 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 	var linkedPubkeys []LinkedPubkeyInfo
 	for _, p := range pubkeys {
 		info := LinkedPubkeyInfo{
-			PubKey:        p.Pubkey,
-			DisplayPubkey: p.DisplayPubkey,
-			LinkedAt:      p.LinkedAt.Format(time.RFC3339),
+			PubKey:   p.Pubkey,
+			LinkedAt: p.LinkedAt.Format(time.RFC3339),
 		}
 
 		if !p.LastUsedAt.IsZero() {
@@ -174,10 +177,56 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 		linkedPubkeys = append(linkedPubkeys, info)
 	}
 
+	// Ensure we always return an empty array instead of null
+	if linkedPubkeys == nil {
+		linkedPubkeys = []LinkedPubkeyInfo{}
+	}
+
 	response := GetLinkedPubkeysResponse{
 		Success:       true,
 		FirebaseUID:   uid,
 		LinkedPubkeys: linkedPubkeys,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// TestLinkPubkey handles POST /v1/auth/test-link-pubkey
+// TEST ENDPOINT: Requires Firebase authentication only (for development)
+func (h *AuthHandlers) TestLinkPubkey(c *gin.Context) {
+	// Get Firebase UID from context (set by FirebaseMiddleware)
+	firebaseUID, exists := c.Get("firebase_uid")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Firebase authentication"})
+		return
+	}
+
+	var req LinkPubkeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if req.PubKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pubkey is required"})
+		return
+	}
+
+	uid := firebaseUID.(string)
+
+	// Link the pubkey to the Firebase user
+	err := h.userService.LinkPubkeyToUser(c.Request.Context(), req.PubKey, uid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := LinkPubkeyResponse{
+		Success:     true,
+		Message:     "Pubkey linked successfully to Firebase account (TEST MODE)",
+		FirebaseUID: uid,
+		PubKey:      req.PubKey,
+		LinkedAt:    time.Now().Format(time.RFC3339),
 	}
 
 	c.JSON(http.StatusOK, response)

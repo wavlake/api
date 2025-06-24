@@ -23,23 +23,6 @@ func (suite *UserServiceTestSuite) SetupTest() {
 }
 
 // Test helper functions
-func (suite *UserServiceTestSuite) TestFormatDisplayPubkey() {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"abc123", "abc123"},                           // Short pubkey
-		{"", ""},                                       // Empty
-		{"1234567890123456", "1234567890123456"},       // Exactly 16 chars
-		{"1234567890123456789", "12345678...23456789"}, // Long pubkey
-		{"abcdef1234567890abcdef1234567890abcdef12", "abcdef12...abcdef12"}, // Full length pubkey
-	}
-
-	for _, test := range tests {
-		result := formatDisplayPubkey(test.input)
-		assert.Equal(suite.T(), test.expected, result, "Failed for input: %s", test.input)
-	}
-}
 
 func (suite *UserServiceTestSuite) TestContains() {
 	slice := []string{"apple", "banana", "cherry"}
@@ -172,26 +155,15 @@ func (suite *UserServiceTestSuite) TestModelCreation() {
 		CreatedAt:     now,
 		LastUsedAt:    now,
 		LinkedAt:      now,
-		DisplayPubkey: formatDisplayPubkey("test-pubkey-123"),
 	}
 
 	assert.Equal(suite.T(), "test-pubkey-123", nostrAuth.Pubkey)
 	assert.Equal(suite.T(), "test-firebase-uid", nostrAuth.FirebaseUID)
 	assert.True(suite.T(), nostrAuth.Active)
-	assert.Equal(suite.T(), "test-pubkey-123", nostrAuth.DisplayPubkey)
 }
 
 // Test edge cases
 func (suite *UserServiceTestSuite) TestEdgeCases() {
-	// Test with very long pubkey
-	longPubkey := "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-	displayPubkey := formatDisplayPubkey(longPubkey)
-	assert.Equal(suite.T(), "abcdef12...34567890", displayPubkey)
-
-	// Test with exactly 16 character pubkey
-	exactPubkey := "1234567890123456"
-	displayExact := formatDisplayPubkey(exactPubkey)
-	assert.Equal(suite.T(), exactPubkey, displayExact)
 
 	// Test contains with duplicate items
 	slice := []string{"apple", "apple", "banana"}

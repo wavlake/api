@@ -65,13 +65,12 @@ func (s *UserService) LinkPubkeyToUser(ctx context.Context, pubkey, firebaseUID 
 		// Create or update NostrAuth record
 		nostrAuthRef := s.firestoreClient.Collection("nostr_auth").Doc(pubkey)
 		nostrAuth := models.NostrAuth{
-			Pubkey:        pubkey,
-			FirebaseUID:   firebaseUID,
-			Active:        true,
-			CreatedAt:     now,
-			LastUsedAt:    now,
-			LinkedAt:      now,
-			DisplayPubkey: formatDisplayPubkey(pubkey),
+			Pubkey:      pubkey,
+			FirebaseUID: firebaseUID,
+			Active:      true,
+			CreatedAt:   now,
+			LastUsedAt:  now,
+			LinkedAt:    now,
 		}
 
 		if err := tx.Set(nostrAuthRef, nostrAuth); err != nil {
@@ -102,14 +101,7 @@ func (s *UserService) UnlinkPubkeyFromUser(ctx context.Context, pubkey, firebase
 
 	// Start a transaction
 	return s.firestoreClient.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
-		// Update NostrAuth to inactive
-		nostrAuthRef := s.firestoreClient.Collection("nostr_auth").Doc(pubkey)
-		nostrAuth.Active = false
-		if err := tx.Set(nostrAuthRef, nostrAuth); err != nil {
-			return fmt.Errorf("failed to update nostr auth: %w", err)
-		}
-
-		// Update User to remove pubkey from active list
+		// First, get all documents we need to read
 		userRef := s.firestoreClient.Collection("users").Doc(firebaseUID)
 		userDoc, err := tx.Get(userRef)
 		if err != nil {
@@ -121,6 +113,16 @@ func (s *UserService) UnlinkPubkeyFromUser(ctx context.Context, pubkey, firebase
 			return fmt.Errorf("failed to parse user data: %w", err)
 		}
 
+		// Now perform all writes
+		// Update NostrAuth to inactive
+		nostrAuthRef := s.firestoreClient.Collection("nostr_auth").Doc(pubkey)
+		updatedNostrAuth := nostrAuth
+		updatedNostrAuth.Active = false
+		if err := tx.Set(nostrAuthRef, updatedNostrAuth); err != nil {
+			return fmt.Errorf("failed to update nostr auth: %w", err)
+		}
+
+		// Update User to remove pubkey from active list
 		user.ActivePubkeys = removeString(user.ActivePubkeys, pubkey)
 		user.UpdatedAt = time.Now()
 
@@ -134,12 +136,15 @@ func (s *UserService) UnlinkPubkeyFromUser(ctx context.Context, pubkey, firebase
 
 // GetLinkedPubkeys returns all active pubkeys for a Firebase user
 func (s *UserService) GetLinkedPubkeys(ctx context.Context, firebaseUID string) ([]models.NostrAuth, error) {
+	// Try simple query first (without OrderBy) in case indexes are missing
 	query := s.firestoreClient.Collection("nostr_auth").
 		Where("firebase_uid", "==", firebaseUID).
-		Where("active", "==", true).
-		OrderBy("linked_at", firestore.Asc)
+		Where("active", "==", true)
 
-	iter := query.Documents(ctx)
+	// Try with OrderBy first, fall back to simple query if it fails
+	orderedQuery := query.OrderBy("linked_at", firestore.Asc)
+	
+	iter := orderedQuery.Documents(ctx)
 	defer iter.Stop()
 
 	var pubkeys []models.NostrAuth
@@ -149,7 +154,28 @@ func (s *UserService) GetLinkedPubkeys(ctx context.Context, firebaseUID string) 
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to iterate pubkeys: %w", err)
+			// If the ordered query fails (likely due to missing index), try simple query
+			iter.Stop()
+			simpleIter := query.Documents(ctx)
+			defer simpleIter.Stop()
+			
+			for {
+				doc, err := simpleIter.Next()
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					return nil, fmt.Errorf("failed to query pubkeys (both ordered and simple): %w", err)
+				}
+
+				var nostrAuth models.NostrAuth
+				if err := doc.DataTo(&nostrAuth); err != nil {
+					return nil, fmt.Errorf("failed to parse nostr auth: %w", err)
+				}
+
+				pubkeys = append(pubkeys, nostrAuth)
+			}
+			break
 		}
 
 		var nostrAuth models.NostrAuth
@@ -179,13 +205,6 @@ func (s *UserService) getNostrAuth(ctx context.Context, pubkey string) (*models.
 }
 
 // Helper functions
-func formatDisplayPubkey(pubkey string) string {
-	if len(pubkey) <= 16 {
-		return pubkey
-	}
-	return pubkey[:8] + "..." + pubkey[len(pubkey)-8:]
-}
-
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {

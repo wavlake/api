@@ -9,6 +9,7 @@ require (
 	firebase.google.com/go/v4 v4.16.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
 	github.com/gin-gonic/gin v1.10.1
+	github.com/stretchr/testify v1.10.0
 	google.golang.org/api v0.238.0
 )
 
@@ -63,7 +64,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
