@@ -26,7 +26,7 @@ echo "API URL: $API_BASE_URL"
 # Deploy the Cloud Function
 gcloud functions deploy process-audio-upload \
     --gen2 \
-    --runtime=go121 \
+    --runtime=go123 \
     --region=us-central1 \
     --source=. \
     --entry-point=ProcessAudioUpload \

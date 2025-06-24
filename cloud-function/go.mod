@@ -1,6 +1,6 @@
 module github.com/wavlake/api/cloud-function
 
-go 1.21
+go 1.23
 
 require (
 	cloud.google.com/go/storage v1.53.0
