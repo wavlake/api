@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/wavlake/api/internal/models"
 	"github.com/wavlake/api/internal/utils"
 )
 
@@ -169,4 +171,136 @@ func (p *ProcessingService) ProcessTrackAsync(ctx context.Context, trackID strin
 			log.Printf("Async processing failed for track %s: %v", trackID, err)
 		}
 	}()
+}
+
+// RequestCompressionVersions queues multiple compression jobs for a track
+func (p *ProcessingService) RequestCompressionVersions(ctx context.Context, trackID string, compressionOptions []models.CompressionOption) error {
+	log.Printf("Requesting compression versions for track %s with %d options", trackID, len(compressionOptions))
+
+	// Mark track as having pending compression
+	if err := p.nostrTrackService.SetPendingCompression(ctx, trackID, true); err != nil {
+		return fmt.Errorf("failed to mark track as pending compression: %w", err)
+	}
+
+	// Process each compression option asynchronously
+	for _, option := range compressionOptions {
+		p.ProcessCompressionAsync(ctx, trackID, option)
+	}
+
+	return nil
+}
+
+// ProcessCompressionAsync processes a single compression option in background
+func (p *ProcessingService) ProcessCompressionAsync(ctx context.Context, trackID string, option models.CompressionOption) {
+	go func() {
+		// Create a background context with timeout
+		processCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		if err := p.ProcessCompression(processCtx, trackID, option); err != nil {
+			log.Printf("Async compression failed for track %s (option: %+v): %v", trackID, option, err)
+		}
+	}()
+}
+
+// ProcessCompression creates a single compressed version of a track
+func (p *ProcessingService) ProcessCompression(ctx context.Context, trackID string, option models.CompressionOption) error {
+	versionID := uuid.New().String()
+	log.Printf("Starting compression for track %s, version %s (bitrate: %d, format: %s)", trackID, versionID, option.Bitrate, option.Format)
+
+	// Get track info
+	track, err := p.nostrTrackService.GetTrack(ctx, trackID)
+	if err != nil {
+		return fmt.Errorf("failed to get track: %w", err)
+	}
+
+	// Create temp files
+	originalPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_original.%s", trackID, track.Extension))
+	compressedPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_%s_compressed.%s", trackID, versionID, option.Format))
+	
+	defer func() {
+		os.Remove(originalPath)
+		os.Remove(compressedPath)
+	}()
+
+	// Download original file from GCS
+	if err := p.downloadFile(ctx, track.OriginalURL, originalPath); err != nil {
+		return fmt.Errorf("download failed: %v", err)
+	}
+
+	// Validate it's a valid audio file
+	if err := p.audioProcessor.ValidateAudioFile(ctx, originalPath); err != nil {
+		return fmt.Errorf("invalid audio file: %v", err)
+	}
+
+	// Compress with specific options
+	if err := p.audioProcessor.CompressAudioWithOptions(ctx, originalPath, compressedPath, option); err != nil {
+		return fmt.Errorf("compression failed: %v", err)
+	}
+
+	// Get compressed file info
+	compressedInfo, err := os.Stat(compressedPath)
+	if err != nil {
+		return fmt.Errorf("failed to get compressed file info: %v", err)
+	}
+
+	// Upload compressed file to GCS
+	compressedObjectName := fmt.Sprintf("tracks/compressed/%s_%s.%s", trackID, versionID, option.Format)
+	compressedFile, err := os.Open(compressedPath)
+	if err != nil {
+		return fmt.Errorf("failed to open compressed file: %v", err)
+	}
+	defer compressedFile.Close()
+
+	contentType := getContentTypeForFormat(option.Format)
+	if err := p.storageService.UploadObject(ctx, compressedObjectName, compressedFile, contentType); err != nil {
+		return fmt.Errorf("failed to upload compressed file: %v", err)
+	}
+
+	compressedURL := p.storageService.GetPublicURL(compressedObjectName)
+
+	// Get actual audio info from compressed file
+	actualInfo, err := p.audioProcessor.GetAudioInfo(ctx, compressedPath)
+	actualBitrate := option.Bitrate
+	actualSampleRate := option.SampleRate
+	if actualInfo != nil {
+		actualBitrate = actualInfo.Bitrate
+		actualSampleRate = actualInfo.SampleRate
+	}
+
+	// Create compression version record
+	version := models.CompressionVersion{
+		ID:         versionID,
+		URL:        compressedURL,
+		Bitrate:    actualBitrate,
+		Format:     option.Format,
+		Quality:    option.Quality,
+		SampleRate: actualSampleRate,
+		Size:       compressedInfo.Size(),
+		IsPublic:   false, // Default to private, user can make public later
+		CreatedAt:  time.Now(),
+		Options:    option,
+	}
+
+	// Add to track
+	if err := p.nostrTrackService.AddCompressionVersion(ctx, trackID, version); err != nil {
+		return fmt.Errorf("failed to save compression version: %v", err)
+	}
+
+	log.Printf("Successfully created compression version %s for track %s", versionID, trackID)
+	return nil
+}
+
+// getContentTypeForFormat returns the appropriate MIME type for audio formats
+func getContentTypeForFormat(format string) string {
+	switch format {
+	case "mp3":
+		return "audio/mpeg"
+	case "aac":
+		return "audio/aac"
+	case "ogg":
+		return "audio/ogg"
+	default:
+		return "audio/mpeg"
+	}
 }

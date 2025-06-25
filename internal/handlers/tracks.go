@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -481,4 +482,243 @@ func (h *TracksHandler) ProcessTrackWebhook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 	})
+}
+
+// RequestCompressionRequest defines compression options for a track
+type RequestCompressionRequest struct {
+	Compressions []models.CompressionOption `json:"compressions" binding:"required,min=1"`
+}
+
+// RequestCompression allows users to request specific compression versions
+func (h *TracksHandler) RequestCompression(c *gin.Context) {
+	trackID := c.Param("id")
+	if trackID == "" {
+		c.JSON(http.StatusBadRequest, CreateTrackResponse{
+			Success: false,
+			Error:   "track ID is required",
+		})
+		return
+	}
+
+	var req RequestCompressionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, CreateTrackResponse{
+			Success: false,
+			Error:   "invalid request: " + err.Error(),
+		})
+		return
+	}
+
+	// Validate compression options
+	for _, compression := range req.Compressions {
+		if err := validateCompressionOption(compression); err != nil {
+			c.JSON(http.StatusBadRequest, CreateTrackResponse{
+				Success: false,
+				Error:   "invalid compression option: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	// Get track to verify ownership
+	track, err := h.nostrTrackService.GetTrack(c.Request.Context(), trackID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, CreateTrackResponse{
+			Success: false,
+			Error:   "track not found",
+		})
+		return
+	}
+
+	// Check ownership
+	pubkey, exists := c.Get("pubkey")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, CreateTrackResponse{
+			Success: false,
+			Error:   "authentication required",
+		})
+		return
+	}
+
+	pubkeyStr, ok := pubkey.(string)
+	if !ok || track.Pubkey != pubkeyStr {
+		c.JSON(http.StatusForbidden, CreateTrackResponse{
+			Success: false,
+			Error:   "not authorized to modify this track",
+		})
+		return
+	}
+
+	// Request compression versions
+	if err := h.processingService.RequestCompressionVersions(c.Request.Context(), trackID, req.Compressions); err != nil {
+		c.JSON(http.StatusInternalServerError, CreateTrackResponse{
+			Success: false,
+			Error:   "failed to request compression: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, CreateTrackResponse{
+		Success: true,
+		Message: "compression requested",
+	})
+}
+
+// UpdateCompressionVisibility allows users to control which versions are public
+func (h *TracksHandler) UpdateCompressionVisibility(c *gin.Context) {
+	trackID := c.Param("id")
+	if trackID == "" {
+		c.JSON(http.StatusBadRequest, CreateTrackResponse{
+			Success: false,
+			Error:   "track ID is required",
+		})
+		return
+	}
+
+	type UpdateVisibilityRequest struct {
+		VersionUpdates []struct {
+			VersionID string `json:"version_id" binding:"required"`
+			IsPublic  bool   `json:"is_public"`
+		} `json:"version_updates" binding:"required,min=1"`
+	}
+
+	var req UpdateVisibilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, CreateTrackResponse{
+			Success: false,
+			Error:   "invalid request: " + err.Error(),
+		})
+		return
+	}
+
+	// Get track to verify ownership
+	track, err := h.nostrTrackService.GetTrack(c.Request.Context(), trackID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, CreateTrackResponse{
+			Success: false,
+			Error:   "track not found",
+		})
+		return
+	}
+
+	// Check ownership
+	pubkey, exists := c.Get("pubkey")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, CreateTrackResponse{
+			Success: false,
+			Error:   "authentication required",
+		})
+		return
+	}
+
+	pubkeyStr, ok := pubkey.(string)
+	if !ok || track.Pubkey != pubkeyStr {
+		c.JSON(http.StatusForbidden, CreateTrackResponse{
+			Success: false,
+			Error:   "not authorized to modify this track",
+		})
+		return
+	}
+
+	// Update visibility
+	if err := h.nostrTrackService.UpdateCompressionVisibility(c.Request.Context(), trackID, req.VersionUpdates); err != nil {
+		c.JSON(http.StatusInternalServerError, CreateTrackResponse{
+			Success: false,
+			Error:   "failed to update visibility: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, CreateTrackResponse{
+		Success: true,
+		Message: "visibility updated",
+	})
+}
+
+// GetPublicVersions returns only the public versions for Nostr event generation
+func (h *TracksHandler) GetPublicVersions(c *gin.Context) {
+	trackID := c.Param("id")
+	if trackID == "" {
+		c.JSON(http.StatusBadRequest, CreateTrackResponse{
+			Success: false,
+			Error:   "track ID is required",
+		})
+		return
+	}
+
+	// Check ownership
+	pubkey, exists := c.Get("pubkey")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, CreateTrackResponse{
+			Success: false,
+			Error:   "authentication required",
+		})
+		return
+	}
+
+	// Get track to verify ownership
+	track, err := h.nostrTrackService.GetTrack(c.Request.Context(), trackID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, CreateTrackResponse{
+			Success: false,
+			Error:   "track not found",
+		})
+		return
+	}
+
+	pubkeyStr, ok := pubkey.(string)
+	if !ok || track.Pubkey != pubkeyStr {
+		c.JSON(http.StatusForbidden, CreateTrackResponse{
+			Success: false,
+			Error:   "not authorized to access this track",
+		})
+		return
+	}
+
+	// Filter for public versions
+	publicVersions := make([]models.CompressionVersion, 0)
+	for _, version := range track.CompressionVersions {
+		if version.IsPublic {
+			publicVersions = append(publicVersions, version)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"track_id":        trackID,
+			"original_url":    track.OriginalURL,
+			"public_versions": publicVersions,
+		},
+	})
+}
+
+// validateCompressionOption validates user compression choices
+func validateCompressionOption(option models.CompressionOption) error {
+	// Validate format
+	validFormats := map[string]bool{"mp3": true, "aac": true, "ogg": true}
+	if !validFormats[option.Format] {
+		return fmt.Errorf("invalid format: %s (supported: mp3, aac, ogg)", option.Format)
+	}
+
+	// Validate bitrate ranges
+	if option.Bitrate < 32 || option.Bitrate > 320 {
+		return fmt.Errorf("invalid bitrate: %d (range: 32-320 kbps)", option.Bitrate)
+	}
+
+	// Validate quality
+	validQualities := map[string]bool{"low": true, "medium": true, "high": true}
+	if option.Quality != "" && !validQualities[option.Quality] {
+		return fmt.Errorf("invalid quality: %s (supported: low, medium, high)", option.Quality)
+	}
+
+	// Validate sample rate if provided
+	if option.SampleRate != 0 {
+		validSampleRates := map[int]bool{22050: true, 44100: true, 48000: true, 96000: true}
+		if !validSampleRates[option.SampleRate] {
+			return fmt.Errorf("invalid sample rate: %d (supported: 22050, 44100, 48000, 96000)", option.SampleRate)
+		}
+	}
+
+	return nil
 }

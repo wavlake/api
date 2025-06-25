@@ -83,7 +83,7 @@ The event must be a kind 27235 event with:
    - Stores user data and NostrTrack metadata
    - Collections: `users`, `nostr_tracks`
 
-### Track Upload Flow
+### Track Upload and Compression Flow
 
 ```
 1. User Initiates Upload (Web Client)
@@ -93,29 +93,40 @@ The event must be a kind 27235 event with:
 3. POST /v1/tracks/nostr (API)
    - Validates NIP-98 auth
    - Creates NostrTrack in Firestore
-   - Returns presigned URL
+   - Returns presigned URL for original file
    ↓
 4. Client uploads file directly to GCS
    - Uses presigned URL
    - File lands in tracks/original/{uuid}.mp3
    ↓
-5. GCS triggers Cloud Function
+5. GCS triggers Cloud Function (optional auto-processing)
    - Detects new file in tracks/original/
-   - Extracts track ID from filename
+   - Can trigger basic validation
    ↓
-6. Cloud Function calls API webhook
-   - POST /v1/tracks/webhook/process
-   - Sends track_id and status
+6. User Requests Custom Compression (Web Client)
+   - POST /v1/tracks/{id}/compress
+   - Specifies desired formats, bitrates, quality levels
+   - Can request multiple versions (e.g., 128k MP3, 256k AAC, 64k OGG)
    ↓
-7. API processes the track
-   - Downloads from GCS
-   - Uses ffmpeg to compress (128kbps MP3)
-   - Uploads compressed version to tracks/compressed/
-   - Updates Firestore with URLs and metadata
+7. API processes compression requests
+   - Downloads original from GCS
+   - Uses ffmpeg with user-specified options
+   - Uploads each compressed version to tracks/compressed/
+   - Updates Firestore with compression metadata
    ↓
-8. Client publishes Nostr event
-   - Kind 31337 event with track info
-   - References compressed_url for streaming
+8. User Manages Visibility (Web Client)
+   - PUT /v1/tracks/{id}/compression-visibility
+   - Chooses which versions to make public
+   - Controls what appears in Nostr events
+   ↓
+9. Client Gets Public Versions for Nostr
+   - GET /v1/tracks/{id}/public-versions
+   - Returns only user-selected public versions
+   ↓
+10. Client publishes Nostr event
+    - Kind 31337 event with track info
+    - Multiple file URLs with different qualities
+    - Users can choose optimal version for their bandwidth
 ```
 
 ## Endpoints
@@ -159,6 +170,78 @@ Delete a track. Requires NIP-98 authentication and ownership.
 
 ### POST /v1/tracks/webhook/process
 Internal webhook endpoint called by Cloud Function to trigger audio processing.
+
+### POST /v1/tracks/:id/compress
+Request custom compression versions for a track. Requires NIP-98 authentication.
+
+**Request:**
+```json
+{
+  "compressions": [
+    {
+      "bitrate": 128,
+      "format": "mp3",
+      "quality": "medium",
+      "sample_rate": 44100
+    },
+    {
+      "bitrate": 256,
+      "format": "aac",
+      "quality": "high"
+    },
+    {
+      "bitrate": 64,
+      "format": "ogg",
+      "quality": "low"
+    }
+  ]
+}
+```
+
+### PUT /v1/tracks/:id/compression-visibility
+Control which compression versions are public for Nostr event publishing.
+
+**Request:**
+```json
+{
+  "version_updates": [
+    {
+      "version_id": "version-uuid-1",
+      "is_public": true
+    },
+    {
+      "version_id": "version-uuid-2", 
+      "is_public": false
+    }
+  ]
+}
+```
+
+### GET /v1/tracks/:id/public-versions
+Get public compression versions for generating Nostr kind 31337 events.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "track_id": "uuid",
+    "original_url": "https://...",
+    "public_versions": [
+      {
+        "id": "version-uuid",
+        "url": "https://...",
+        "bitrate": 128,
+        "format": "mp3",
+        "quality": "medium",
+        "sample_rate": 44100,
+        "size": 5242880,
+        "is_public": true
+      }
+    ]
+  }
+}
+```
 
 ### POST /v1/auth/link-pubkey
 Link a Nostr pubkey to a Firebase account. Requires both Firebase and NIP-98 authentication.

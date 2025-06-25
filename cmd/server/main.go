@@ -233,6 +233,43 @@ func main() {
 			}
 			tracksHandler.TriggerProcessing(c)
 		}))))
+
+		// Compression management endpoints
+		tracksGroup.POST("/:id/compress", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.RequestCompression(c)
+		}))))
+
+		tracksGroup.PUT("/:id/compression-visibility", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.UpdateCompressionVisibility(c)
+		}))))
+
+		tracksGroup.GET("/:id/public-versions", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+				c.Set("firebase_uid", firebaseUID)
+			}
+			tracksHandler.GetPublicVersions(c)
+		}))))
 	}
 
 	// Start server
@@ -249,6 +286,9 @@ func main() {
 	log.Printf("  DELETE /v1/tracks/:id (NIP-98 auth: Delete track)")
 	log.Printf("  GET  /v1/tracks/:id/status (NIP-98 auth: Get track status)")
 	log.Printf("  POST /v1/tracks/:id/process (NIP-98 auth: Trigger processing)")
+	log.Printf("  POST /v1/tracks/:id/compress (NIP-98 auth: Request compression versions)")
+	log.Printf("  PUT  /v1/tracks/:id/compression-visibility (NIP-98 auth: Update version visibility)")
+	log.Printf("  GET  /v1/tracks/:id/public-versions (NIP-98 auth: Get public versions for Nostr)")
 
 	go func() {
 		if err := router.Run(":" + port); err != nil {

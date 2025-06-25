@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/wavlake/api/internal/models"
 )
 
 // AudioProcessor handles audio file processing and compression
@@ -199,4 +201,58 @@ func (ap *AudioProcessor) IsFormatSupported(extension string) bool {
 		}
 	}
 	return false
+}
+
+// CompressAudioWithOptions compresses audio with specific user-defined options
+func (ap *AudioProcessor) CompressAudioWithOptions(ctx context.Context, inputPath, outputPath string, options models.CompressionOption) error {
+	log.Printf("Compressing audio with options: %+v", options)
+
+	// Build ffmpeg command based on format and options
+	args := []string{
+		"-i", inputPath,
+		"-y", // Overwrite output file
+	}
+
+	// Add format-specific encoding options
+	switch options.Format {
+	case "mp3":
+		args = append(args, "-c:a", "libmp3lame")
+		args = append(args, "-b:a", fmt.Sprintf("%dk", options.Bitrate))
+	case "aac":
+		args = append(args, "-c:a", "aac")
+		args = append(args, "-b:a", fmt.Sprintf("%dk", options.Bitrate))
+	case "ogg":
+		args = append(args, "-c:a", "libvorbis")
+		args = append(args, "-b:a", fmt.Sprintf("%dk", options.Bitrate))
+	default:
+		return fmt.Errorf("unsupported format: %s", options.Format)
+	}
+
+	// Add sample rate if specified
+	if options.SampleRate > 0 {
+		args = append(args, "-ar", fmt.Sprintf("%d", options.SampleRate))
+	}
+
+	// Add quality settings based on quality level
+	switch options.Quality {
+	case "low":
+		args = append(args, "-q:a", "9") // Lower quality, smaller file
+	case "medium":
+		args = append(args, "-q:a", "5") // Balanced
+	case "high":
+		args = append(args, "-q:a", "1") // Higher quality, larger file
+	}
+
+	// Add output path
+	args = append(args, outputPath)
+
+	// Execute ffmpeg
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to compress audio with options %+v: %w, output: %s", options, err, string(output))
+	}
+
+	log.Printf("Successfully compressed audio with options: %s -> %s", inputPath, outputPath)
+	return nil
 }

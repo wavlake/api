@@ -222,3 +222,84 @@ func (s *NostrTrackService) HardDeleteTrack(ctx context.Context, trackID string)
 	log.Printf("Hard deleted track %s", trackID)
 	return nil
 }
+
+// UpdateCompressionVisibility updates which compression versions are public
+func (s *NostrTrackService) UpdateCompressionVisibility(ctx context.Context, trackID string, updates []struct {
+	VersionID string `json:"version_id"`
+	IsPublic  bool   `json:"is_public"`
+}) error {
+	// Get current track
+	track, err := s.GetTrack(ctx, trackID)
+	if err != nil {
+		return fmt.Errorf("failed to get track: %w", err)
+	}
+
+	// Update visibility for specified versions
+	for i, version := range track.CompressionVersions {
+		for _, update := range updates {
+			if version.ID == update.VersionID {
+				track.CompressionVersions[i].IsPublic = update.IsPublic
+				break
+			}
+		}
+	}
+
+	// Save updated track
+	_, err = s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Set(ctx, track)
+	if err != nil {
+		return fmt.Errorf("failed to update track: %w", err)
+	}
+
+	log.Printf("Updated compression visibility for track %s", trackID)
+	return nil
+}
+
+// AddCompressionVersion adds a new compression version to a track
+func (s *NostrTrackService) AddCompressionVersion(ctx context.Context, trackID string, version models.CompressionVersion) error {
+	// Get current track
+	track, err := s.GetTrack(ctx, trackID)
+	if err != nil {
+		return fmt.Errorf("failed to get track: %w", err)
+	}
+
+	// Check if version with same ID already exists
+	for i, existing := range track.CompressionVersions {
+		if existing.ID == version.ID {
+			// Update existing version
+			track.CompressionVersions[i] = version
+			log.Printf("Updated existing compression version %s for track %s", version.ID, trackID)
+			
+			// Save updated track
+			_, err = s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Set(ctx, track)
+			return err
+		}
+	}
+
+	// Add new version
+	track.CompressionVersions = append(track.CompressionVersions, version)
+	track.HasPendingCompression = false // Clear pending flag
+
+	// Save updated track
+	_, err = s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Set(ctx, track)
+	if err != nil {
+		return fmt.Errorf("failed to update track: %w", err)
+	}
+
+	log.Printf("Added compression version %s for track %s", version.ID, trackID)
+	return nil
+}
+
+// SetPendingCompression marks a track as having pending compression requests
+func (s *NostrTrackService) SetPendingCompression(ctx context.Context, trackID string, pending bool) error {
+	updates := map[string]interface{}{
+		"has_pending_compression": pending,
+		"updated_at":              time.Now(),
+	}
+
+	_, err := s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Update(ctx, updates)
+	if err != nil {
+		return fmt.Errorf("failed to update pending compression status: %w", err)
+	}
+
+	return nil
+}
