@@ -143,7 +143,7 @@ func (s *UserService) GetLinkedPubkeys(ctx context.Context, firebaseUID string) 
 
 	// Try with OrderBy first, fall back to simple query if it fails
 	orderedQuery := query.OrderBy("linked_at", firestore.Asc)
-	
+
 	iter := orderedQuery.Documents(ctx)
 	defer iter.Stop()
 
@@ -158,7 +158,7 @@ func (s *UserService) GetLinkedPubkeys(ctx context.Context, firebaseUID string) 
 			iter.Stop()
 			simpleIter := query.Documents(ctx)
 			defer simpleIter.Stop()
-			
+
 			for {
 				doc, err := simpleIter.Next()
 				if err == iterator.Done {

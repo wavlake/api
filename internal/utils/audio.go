@@ -27,11 +27,11 @@ func NewAudioProcessor(tempDir string) *AudioProcessor {
 
 // AudioInfo contains metadata about an audio file
 type AudioInfo struct {
-	Duration    int   // Duration in seconds
-	Size        int64 // File size in bytes
-	Bitrate     int   // Bitrate in kbps
-	SampleRate  int   // Sample rate in Hz
-	Channels    int   // Number of channels
+	Duration   int   // Duration in seconds
+	Size       int64 // File size in bytes
+	Bitrate    int   // Bitrate in kbps
+	SampleRate int   // Sample rate in Hz
+	Channels   int   // Number of channels
 }
 
 // GetAudioInfo extracts metadata from an audio file using ffprobe
@@ -94,11 +94,11 @@ func (ap *AudioProcessor) GetAudioInfo(ctx context.Context, inputPath string) (*
 	}
 
 	return &AudioInfo{
-		Duration:    int(duration),
-		Size:        size,
-		Bitrate:     int(bitrate),
-		SampleRate:  sampleRate,
-		Channels:    channels,
+		Duration:   int(duration),
+		Size:       size,
+		Bitrate:    int(bitrate),
+		SampleRate: sampleRate,
+		Channels:   channels,
 	}, nil
 }
 
@@ -113,12 +113,12 @@ func (ap *AudioProcessor) CompressAudio(ctx context.Context, inputPath, outputPa
 	// Use ffmpeg to compress the audio
 	cmd := exec.CommandContext(ctx, "ffmpeg",
 		"-i", inputPath,
-		"-codec:a", "libmp3lame",    // Use LAME MP3 encoder
-		"-b:a", "128k",              // 128 kbps bitrate
-		"-ar", "44100",              // 44.1 kHz sample rate
-		"-ac", "2",                  // Stereo (2 channels)
-		"-f", "mp3",                 // Output format
-		"-y",                        // Overwrite output file
+		"-codec:a", "libmp3lame", // Use LAME MP3 encoder
+		"-b:a", "128k", // 128 kbps bitrate
+		"-ar", "44100", // 44.1 kHz sample rate
+		"-ac", "2", // Stereo (2 channels)
+		"-f", "mp3", // Output format
+		"-y", // Overwrite output file
 		outputPath)
 
 	output, err := cmd.CombinedOutput()
@@ -142,8 +142,8 @@ func (ap *AudioProcessor) DownloadAndCompress(ctx context.Context, sourceURL, ou
 
 	// Download the file using curl (more reliable than Go's http client for large files)
 	cmd := exec.CommandContext(ctx, "curl",
-		"-L",                    // Follow redirects
-		"-o", tempFile.Name(),   // Output to temp file
+		"-L",                  // Follow redirects
+		"-o", tempFile.Name(), // Output to temp file
 		sourceURL)
 
 	if err := cmd.Run(); err != nil {

@@ -69,19 +69,17 @@ func (suite *AuthHandlerTestSuite) TestGetLinkedPubkeys_Success() {
 	// Setup mock response
 	mockPubkeys := []models.NostrAuth{
 		{
-			Pubkey:        "pubkey1",
-			FirebaseUID:   "test-firebase-uid",
-			Active:        true,
-			LinkedAt:      time.Now(),
-			LastUsedAt:    time.Now(),
-			DisplayPubkey: "pubkey1...123",
+			Pubkey:      "pubkey1",
+			FirebaseUID: "test-firebase-uid",
+			Active:      true,
+			LinkedAt:    time.Now(),
+			LastUsedAt:  time.Now(),
 		},
 		{
-			Pubkey:        "pubkey2",
-			FirebaseUID:   "test-firebase-uid",
-			Active:        true,
-			LinkedAt:      time.Now(),
-			DisplayPubkey: "pubkey2...456",
+			Pubkey:      "pubkey2",
+			FirebaseUID: "test-firebase-uid",
+			Active:      true,
+			LinkedAt:    time.Now(),
 		},
 	}
 
@@ -102,7 +100,7 @@ func (suite *AuthHandlerTestSuite) TestGetLinkedPubkeys_Success() {
 	assert.Equal(suite.T(), "test-firebase-uid", response.FirebaseUID)
 	assert.Len(suite.T(), response.LinkedPubkeys, 2)
 	assert.Equal(suite.T(), "pubkey1", response.LinkedPubkeys[0].PubKey)
-	assert.Equal(suite.T(), "pubkey1...123", response.LinkedPubkeys[0].DisplayPubkey)
+	// assert.Equal(suite.T(), "pubkey1...123", response.LinkedPubkeys[0].DisplayPubkey) // Field removed
 }
 
 func (suite *AuthHandlerTestSuite) TestGetLinkedPubkeys_ServiceError() {

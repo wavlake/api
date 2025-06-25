@@ -355,4 +355,4 @@ gcloud builds submit --config cloudbuild.yaml
 Make sure to:
 1. Create a service account with necessary permissions
 2. Enable required APIs (Cloud Run, Cloud Build, Firestore)
-3. Configure IAM permissions
+3. Configure IAM permissions# Test change

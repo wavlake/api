@@ -31,13 +31,13 @@ func NewStorageService(ctx context.Context, bucketName string) (*StorageService,
 	// Try to use service account key if available, otherwise use default credentials
 	var client *storage.Client
 	var err error
-	
+
 	if keyPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); keyPath != "" {
 		client, err = storage.NewClient(ctx, option.WithCredentialsFile(keyPath))
 	} else {
 		client, err = storage.NewClient(ctx)
 	}
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage client: %w", err)
 	}
@@ -56,14 +56,14 @@ func (s *StorageService) Close() error {
 func (s *StorageService) GeneratePresignedURL(ctx context.Context, objectName string, expiration time.Duration) (string, error) {
 	// For Cloud Run with default credentials, we need to specify the service account email
 	serviceAccountEmail := "api-service@wavlake-alpha.iam.gserviceaccount.com"
-	
+
 	// Generate a presigned URL for PUT operations
 	opts := &storage.SignedURLOptions{
-		Scheme:           storage.SigningSchemeV4,
-		Method:           "PUT",
-		Headers:          []string{"Content-Type"},
-		Expires:          time.Now().Add(expiration),
-		GoogleAccessID:   serviceAccountEmail,
+		Scheme:         storage.SigningSchemeV4,
+		Method:         "PUT",
+		Headers:        []string{"Content-Type"},
+		Expires:        time.Now().Add(expiration),
+		GoogleAccessID: serviceAccountEmail,
 		SignBytes: func(b []byte) ([]byte, error) {
 			// Use the IAM service to sign the bytes
 			return signBytes(ctx, serviceAccountEmail, b)

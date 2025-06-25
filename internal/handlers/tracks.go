@@ -118,9 +118,9 @@ func (h *TracksHandler) CreateTrackNostr(c *gin.Context) {
 }
 
 type GetTracksResponse struct {
-	Success bool                `json:"success"`
+	Success bool                 `json:"success"`
 	Data    []*models.NostrTrack `json:"data,omitempty"`
-	Error   string              `json:"error,omitempty"`
+	Error   string               `json:"error,omitempty"`
 }
 
 // GetMyTracks returns tracks for the authenticated user
@@ -428,10 +428,10 @@ func (h *TracksHandler) ProcessTrackWebhook(c *gin.Context) {
 	case "uploaded":
 		// File was uploaded to GCS, start processing
 		log.Printf("Starting processing for uploaded track %s (source: %s)", payload.TrackID, payload.Source)
-		
+
 		// Start async processing
 		h.processingService.ProcessTrackAsync(ctx, payload.TrackID)
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "processing started",
@@ -461,7 +461,7 @@ func (h *TracksHandler) ProcessTrackWebhook(c *gin.Context) {
 		// Mark track as failed processing
 		updates := map[string]interface{}{
 			"is_processing": false,
-			"error":        payload.Error,
+			"error":         payload.Error,
 		}
 		if err := h.nostrTrackService.UpdateTrack(ctx, payload.TrackID, updates); err != nil {
 			log.Printf("Failed to mark track as failed: %v", err)

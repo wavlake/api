@@ -41,10 +41,10 @@ func ProcessAudioUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Log raw event for debugging
 	log.Printf("Raw event body: %s", string(body))
-	
+
 	// Parse the event
 	var gcsObject GCSObject
 	if err := json.Unmarshal(body, &gcsObject); err != nil {
@@ -123,7 +123,7 @@ func triggerProcessing(trackID string) error {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	// Add webhook authentication if configured
 	if webhookSecret := os.Getenv("WEBHOOK_SECRET"); webhookSecret != "" {
 		req.Header.Set("X-Webhook-Secret", webhookSecret)

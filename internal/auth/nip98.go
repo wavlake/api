@@ -66,7 +66,7 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 			http.Error(w, "Invalid event JSON", http.StatusUnauthorized)
 			return
 		}
-		
+
 		event := &nostr.Event{Event: &gonostrEvent}
 
 		if event.Kind != 27235 {

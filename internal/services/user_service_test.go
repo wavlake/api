@@ -149,12 +149,12 @@ func (suite *UserServiceTestSuite) TestModelCreation() {
 
 	// Test NostrAuth model
 	nostrAuth := models.NostrAuth{
-		Pubkey:        "test-pubkey-123",
-		FirebaseUID:   "test-firebase-uid",
-		Active:        true,
-		CreatedAt:     now,
-		LastUsedAt:    now,
-		LinkedAt:      now,
+		Pubkey:      "test-pubkey-123",
+		FirebaseUID: "test-firebase-uid",
+		Active:      true,
+		CreatedAt:   now,
+		LastUsedAt:  now,
+		LinkedAt:    now,
 	}
 
 	assert.Equal(suite.T(), "test-pubkey-123", nostrAuth.Pubkey)

@@ -17,7 +17,7 @@ type ProcessingService struct {
 	storageService    *StorageService
 	nostrTrackService *NostrTrackService
 	audioProcessor    *utils.AudioProcessor
-	tempDir          string
+	tempDir           string
 }
 
 func NewProcessingService(storageService *StorageService, nostrTrackService *NostrTrackService, audioProcessor *utils.AudioProcessor, tempDir string) *ProcessingService {
@@ -25,7 +25,7 @@ func NewProcessingService(storageService *StorageService, nostrTrackService *Nos
 		storageService:    storageService,
 		nostrTrackService: nostrTrackService,
 		audioProcessor:    audioProcessor,
-		tempDir:          tempDir,
+		tempDir:           tempDir,
 	}
 }
 
@@ -42,7 +42,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 	// Create temp files
 	originalPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_original.%s", trackID, track.Extension))
 	compressedPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_compressed.mp3", trackID))
-	
+
 	defer func() {
 		os.Remove(originalPath)
 		os.Remove(compressedPath)
@@ -109,7 +109,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 		Format:     "mp3",
 		Quality:    "medium",
 		SampleRate: 44100,
-		Size:       0, // Will be updated if we can get file info
+		Size:       0,    // Will be updated if we can get file info
 		IsPublic:   true, // Default compressed version is public for backwards compatibility
 		CreatedAt:  time.Now(),
 		Options: models.CompressionOption{
@@ -138,7 +138,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 func (p *ProcessingService) downloadFile(ctx context.Context, url, filePath string) error {
 	// For GCS URLs, we can use the storage client directly
 	// This is more efficient than HTTP download for files in the same project
-	
+
 	// Create temp file
 	tempFile, err := os.Create(filePath)
 	if err != nil {
@@ -180,12 +180,12 @@ func (p *ProcessingService) downloadFile(ctx context.Context, url, filePath stri
 // markProcessingFailed marks a track as failed processing
 func (p *ProcessingService) markProcessingFailed(ctx context.Context, trackID, errorMsg string) error {
 	log.Printf("Processing failed for track %s: %s", trackID, errorMsg)
-	
+
 	updates := map[string]interface{}{
 		"is_processing": false,
-		"error":        errorMsg,
+		"error":         errorMsg,
 	}
-	
+
 	return p.nostrTrackService.UpdateTrack(ctx, trackID, updates)
 }
 
@@ -246,7 +246,7 @@ func (p *ProcessingService) ProcessCompression(ctx context.Context, trackID stri
 	// Create temp files
 	originalPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_original.%s", trackID, track.Extension))
 	compressedPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_%s_compressed.%s", trackID, versionID, option.Format))
-	
+
 	defer func() {
 		os.Remove(originalPath)
 		os.Remove(compressedPath)

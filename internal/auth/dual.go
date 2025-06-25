@@ -82,7 +82,7 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 	if err := json.Unmarshal(eventData, &gonostrEvent); err != nil {
 		return nil, fmt.Errorf("invalid event JSON: %w", err)
 	}
-	
+
 	event := &nostr.Event{Event: &gonostrEvent}
 
 	// Validate NIP-98 requirements

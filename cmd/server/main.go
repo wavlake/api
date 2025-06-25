@@ -108,21 +108,21 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	
+
 	// Configure CORS
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{
-		"http://localhost:8080",     // Development
-		"http://localhost:3000",     // Alternative dev port
-		"http://localhost:8083",     // Another dev port
-		"https://wavlake.com",       // Production
-		"https://*.wavlake.com",     // Subdomains
+		"http://localhost:8080",           // Development
+		"http://localhost:3000",           // Alternative dev port
+		"http://localhost:8083",           // Another dev port
+		"https://wavlake.com",             // Production
+		"https://*.wavlake.com",           // Subdomains
 		"https://web-wavlake.vercel.app/", // Vercel preview deployments
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{
 		"Origin",
-		"Content-Type", 
+		"Content-Type",
 		"Accept",
 		"Authorization",
 		"X-Nostr-Authorization",

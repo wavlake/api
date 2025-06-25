@@ -3,14 +3,10 @@ package services
 import (
 	"context"
 	"testing"
-	"time"
 
-	"cloud.google.com/go/firestore"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavlake/api/internal/models"
-	"google.golang.org/api/iterator"
 )
 
 // MockFirestoreClient provides a test implementation for UserService
@@ -137,7 +133,7 @@ func (suite *UserServiceIntegrationTestSuite) TestLinkPubkeyEdgeCases() {
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(t *testing.T) {
-			existingAuth, firebaseUID, pubkey := tc.setupFunc()
+			existingAuth, firebaseUID, _ := tc.setupFunc()
 
 			// Document the expected behavior
 			if existingAuth != nil {
@@ -263,7 +259,7 @@ func (suite *UserServiceIntegrationTestSuite) TestGetLinkedPubkeysEdgeCases() {
 			// - firebase_uid matches the requested user
 			// - active == true
 			// - Results should be ordered by linked_at (ascending)
-			assert.Equal(t, tc.expectedActive, tc.expectedCount, 
+			assert.Equal(t, tc.expectedActive, tc.expectedCount,
 				"GetLinkedPubkeys should only return active pubkeys")
 		})
 	}

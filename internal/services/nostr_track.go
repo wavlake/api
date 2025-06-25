@@ -31,7 +31,7 @@ func (s *NostrTrackService) CreateTrack(ctx context.Context, pubkey, firebaseUID
 
 	// Generate storage object names
 	originalObjectName := fmt.Sprintf("tracks/original/%s.%s", trackID, extension)
-	
+
 	// Generate presigned URL for upload (valid for 1 hour)
 	presignedURL, err := s.storageService.GeneratePresignedURL(ctx, originalObjectName, time.Hour)
 	if err != nil {
@@ -152,7 +152,7 @@ func (s *NostrTrackService) UpdateTrack(ctx context.Context, trackID string, upd
 	for path, value := range updates {
 		updatePaths = append(updatePaths, firestore.Update{Path: path, Value: value})
 	}
-	
+
 	_, err := s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Update(ctx, updatePaths)
 	if err != nil {
 		return fmt.Errorf("failed to update track: %w", err)
@@ -165,9 +165,9 @@ func (s *NostrTrackService) UpdateTrack(ctx context.Context, trackID string, upd
 func (s *NostrTrackService) MarkTrackAsProcessed(ctx context.Context, trackID string, size int64, duration int) error {
 	updates := map[string]interface{}{
 		"is_processing": false,
-		"size":         size,
-		"duration":     duration,
-		"updated_at":   time.Now(),
+		"size":          size,
+		"duration":      duration,
+		"updated_at":    time.Now(),
 	}
 
 	return s.UpdateTrack(ctx, trackID, updates)
@@ -267,7 +267,7 @@ func (s *NostrTrackService) AddCompressionVersion(ctx context.Context, trackID s
 			// Update existing version
 			track.CompressionVersions[i] = version
 			log.Printf("Updated existing compression version %s for track %s", version.ID, trackID)
-			
+
 			// Save updated track
 			_, err = s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Set(ctx, track)
 			return err

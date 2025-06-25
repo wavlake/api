@@ -196,4 +196,3 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
-
