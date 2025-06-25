@@ -24,11 +24,26 @@ steps:
       '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=wavlake-audio',
       '--service-account', '${_SERVICE_ACCOUNT}'
     ]
+  
+  # Deploy Cloud Function for audio processing
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'functions', 'deploy', 'process-audio-upload',
+      '--gen2',
+      '--runtime', 'go122',
+      '--trigger-bucket', 'wavlake-audio',
+      '--source', './cloud-function',
+      '--entry-point', 'ProcessAudioUpload',
+      '--region', '${_REGION}',
+      '--set-env-vars', 'API_BASE_URL=https://api-${_PROJECT_NUMBER}.${_REGION}.run.app/v1'
+    ]
 
 substitutions:
   _REGION: us-central1
   _REPOSITORY: api-repo
   _SERVICE_ACCOUNT: api-service@${PROJECT_ID}.iam.gserviceaccount.com
+  _PROJECT_NUMBER: '854568123236'
 
 options:
   logging: CLOUD_LOGGING_ONLY
