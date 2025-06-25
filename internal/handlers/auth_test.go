@@ -35,9 +35,6 @@ func (suite *AuthHandlerTestSuite) SetupTest() {
 	// Setup routes with mock middleware that sets auth context
 	auth := suite.router.Group("/v1/auth")
 	{
-		// Public endpoint (no auth required)
-		auth.POST("/check-pubkey-link", suite.handlers.CheckPubkeyLink)
-
 		auth.GET("/get-linked-pubkeys", suite.mockFirebaseAuth(), suite.handlers.GetLinkedPubkeys)
 		auth.POST("/unlink-pubkey", suite.mockFirebaseAuth(), suite.handlers.UnlinkPubkey)
 		auth.POST("/link-pubkey", suite.mockDualAuth(), suite.handlers.LinkPubkey)
@@ -296,11 +293,19 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_Linked() {
 		PubKey: "test-pubkey-123",
 	}
 
+	// Create a context with NIP-98 auth
 	jsonBody, _ := json.Marshal(requestBody)
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
+	
+	// Create gin context with authenticated pubkey
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Set("pubkey", "test-pubkey-123")
+	
+	// Call handler directly with authenticated context
+	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
@@ -324,7 +329,12 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_NotLinked() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
+	
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Set("pubkey", "unlinked-pubkey")
+	
+	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
@@ -341,13 +351,64 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_InvalidRequest() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer([]byte("{}")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
+	
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Set("pubkey", "test-pubkey")
+	
+	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
 
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.Contains(suite.T(), response["error"], "pubkey is required")
+}
+
+func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_UnauthorizedNoAuth() {
+	requestBody := CheckPubkeyLinkRequest{
+		PubKey: "test-pubkey",
+	}
+
+	jsonBody, _ := json.Marshal(requestBody)
+	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	// No pubkey set - simulating missing auth
+	
+	suite.handlers.CheckPubkeyLink(c)
+
+	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
+
+	var response map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &response)
+	assert.Equal(suite.T(), "Missing Nostr authentication", response["error"])
+}
+
+func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_ForbiddenWrongPubkey() {
+	requestBody := CheckPubkeyLinkRequest{
+		PubKey: "different-pubkey",
+	}
+
+	jsonBody, _ := json.Marshal(requestBody)
+	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Set("pubkey", "authenticated-pubkey")
+	
+	suite.handlers.CheckPubkeyLink(c)
+
+	assert.Equal(suite.T(), http.StatusForbidden, w.Code)
+
+	var response map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &response)
+	assert.Equal(suite.T(), "You can only check linking status for your own pubkey", response["error"])
 }
 
 func TestAuthHandlerTestSuite(t *testing.T) {

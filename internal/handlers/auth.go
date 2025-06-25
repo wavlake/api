@@ -211,11 +211,24 @@ type CheckPubkeyLinkResponse struct {
 }
 
 // CheckPubkeyLink handles POST /v1/auth/check-pubkey-link
-// Public endpoint - no authentication required
+// Requires NIP-98 authentication - users can only check their own pubkey
 func (h *AuthHandlers) CheckPubkeyLink(c *gin.Context) {
+	// Get authenticated pubkey from NIP-98 middleware
+	authPubkey, exists := c.Get("pubkey")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Nostr authentication"})
+		return
+	}
+
 	var req CheckPubkeyLinkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body - pubkey is required"})
+		return
+	}
+
+	// Verify that the authenticated pubkey matches the requested pubkey
+	if authPubkey.(string) != req.PubKey {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only check linking status for your own pubkey"})
 		return
 	}
 

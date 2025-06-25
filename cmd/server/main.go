@@ -140,15 +140,22 @@ func main() {
 	v1 := router.Group("/v1")
 	authGroup := v1.Group("/auth")
 	{
-		// Public endpoints (no auth required)
-		authGroup.POST("/check-pubkey-link", authHandlers.CheckPubkeyLink)
-
 		// Firebase auth only endpoints
 		authGroup.GET("/get-linked-pubkeys", firebaseMiddleware.Middleware(), authHandlers.GetLinkedPubkeys)
 		authGroup.POST("/unlink-pubkey", firebaseMiddleware.Middleware(), authHandlers.UnlinkPubkey)
 
 		// Dual auth required endpoint
 		authGroup.POST("/link-pubkey", dualAuthMiddleware.Middleware(), authHandlers.LinkPubkey)
+		
+		// NIP-98 auth required endpoint
+		authGroup.POST("/check-pubkey-link", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, _ := gin.CreateTestContext(w)
+			c.Request = r
+			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+				c.Set("pubkey", pubkey)
+			}
+			authHandlers.CheckPubkeyLink(c)
+		}))))
 	}
 
 	// Protected endpoints that require NIP-98 auth
@@ -279,10 +286,10 @@ func main() {
 	log.Printf("Starting server on port %s", port)
 	log.Printf("Endpoints available:")
 	log.Printf("  GET  /heartbeat")
-	log.Printf("  POST /v1/auth/check-pubkey-link (Public: Check if pubkey is linked)")
 	log.Printf("  GET  /v1/auth/get-linked-pubkeys (Firebase auth)")
 	log.Printf("  POST /v1/auth/unlink-pubkey (Firebase auth)")
 	log.Printf("  POST /v1/auth/link-pubkey (Dual auth: Firebase + NIP-98)")
+	log.Printf("  POST /v1/auth/check-pubkey-link (NIP-98 auth: Check own pubkey link status)")
 	log.Printf("  GET  /v1/tracks/:id (Public track info)")
 	log.Printf("  POST /v1/tracks/webhook/process (Processing webhook)")
 	log.Printf("  POST /v1/tracks/nostr (NIP-98 auth: Create track)")
