@@ -84,7 +84,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 
 	compressedURL := p.storageService.GetPublicURL(compressedObjectName)
 
-	// Update track with processing results
+	// Update track with processing results (legacy fields for backwards compatibility)
 	updates := map[string]interface{}{
 		"is_processing":  false,
 		"is_compressed":  true,
@@ -99,6 +99,35 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 	if err := p.nostrTrackService.UpdateTrack(ctx, trackID, updates); err != nil {
 		log.Printf("Failed to update track %s after processing: %v", trackID, err)
 		// Don't return error since processing succeeded
+	}
+
+	// Also add as a compression version for new system compatibility
+	defaultVersion := models.CompressionVersion{
+		ID:         "default-128k-mp3",
+		URL:        compressedURL,
+		Bitrate:    128,
+		Format:     "mp3",
+		Quality:    "medium",
+		SampleRate: 44100,
+		Size:       0, // Will be updated if we can get file info
+		IsPublic:   true, // Default compressed version is public for backwards compatibility
+		CreatedAt:  time.Now(),
+		Options: models.CompressionOption{
+			Bitrate:    128,
+			Format:     "mp3",
+			Quality:    "medium",
+			SampleRate: 44100,
+		},
+	}
+
+	// Try to get compressed file size
+	if compressedInfo, err := os.Stat(compressedPath); err == nil {
+		defaultVersion.Size = compressedInfo.Size()
+	}
+
+	// Add default compression version (ignore errors to maintain backwards compatibility)
+	if err := p.nostrTrackService.AddCompressionVersion(ctx, trackID, defaultVersion); err != nil {
+		log.Printf("Warning: Failed to add default compression version for track %s: %v", trackID, err)
 	}
 
 	log.Printf("Successfully processed track %s", trackID)

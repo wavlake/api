@@ -40,17 +40,19 @@ func (s *NostrTrackService) CreateTrack(ctx context.Context, pubkey, firebaseUID
 
 	// Create the track record
 	track := &models.NostrTrack{
-		ID:           trackID,
-		FirebaseUID:  firebaseUID,
-		Pubkey:       pubkey,
-		OriginalURL:  s.storageService.GetPublicURL(originalObjectName),
-		PresignedURL: presignedURL,
-		Extension:    extension,
-		IsProcessing: true,
-		IsCompressed: false,
-		Deleted:      false,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:                    trackID,
+		FirebaseUID:           firebaseUID,
+		Pubkey:                pubkey,
+		OriginalURL:           s.storageService.GetPublicURL(originalObjectName),
+		PresignedURL:          presignedURL,
+		Extension:             extension,
+		IsProcessing:          true,
+		IsCompressed:          false,
+		CompressionVersions:   []models.CompressionVersion{}, // Initialize empty slice
+		HasPendingCompression: false,
+		Deleted:               false,
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 
 	// Save to Firestore
