@@ -1,8 +1,18 @@
 [
   {
-    "origin": ["http://localhost:8080", "https://wavlake.com", "https://*.wavlake.com"],
+    "origin": [
+      "http://localhost:8080",
+      "https://wavlake.com",
+      "https://*.wavlake.com",
+      "https://web-wavlake.vercel.app/"
+    ],
     "method": ["GET", "PUT", "POST", "HEAD", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Access-Control-Allow-Origin", "Access-Control-Allow-Methods", "Access-Control-Allow-Headers"],
+    "responseHeader": [
+      "Content-Type",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers"
+    ],
     "maxAgeSeconds": 3600
   }
 ]
