@@ -293,9 +293,9 @@ func (s *NostrTrackService) AddCompressionVersion(ctx context.Context, trackID s
 
 // SetPendingCompression marks a track as having pending compression requests
 func (s *NostrTrackService) SetPendingCompression(ctx context.Context, trackID string, pending bool) error {
-	updates := map[string]interface{}{
-		"has_pending_compression": pending,
-		"updated_at":              time.Now(),
+	updates := []firestore.Update{
+		{Path: "has_pending_compression", Value: pending},
+		{Path: "updated_at", Value: time.Now()},
 	}
 
 	_, err := s.firestoreClient.Collection("nostr_tracks").Doc(trackID).Update(ctx, updates)
