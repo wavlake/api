@@ -25,19 +25,8 @@ steps:
       '--service-account', '${_SERVICE_ACCOUNT}'
     ]
   
-  # Deploy Cloud Function for audio processing
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args: [
-      'functions', 'deploy', 'process-audio-upload',
-      '--gen2',
-      '--runtime', 'go122',
-      '--trigger-bucket', 'wavlake-audio',
-      '--source', './cloud-function',
-      '--entry-point', 'ProcessAudioUpload',
-      '--region', '${_REGION}',
-      '--set-env-vars', 'API_BASE_URL=https://api-${_PROJECT_NUMBER}.${_REGION}.run.app/v1'
-    ]
+  # TODO: Deploy Cloud Function manually for now due to permission issues
+  # gcloud functions deploy process-audio-upload --gen2 --runtime go122 --trigger-bucket wavlake-audio --source ./cloud-function --entry-point ProcessAudioUpload --region us-central1 --set-env-vars API_BASE_URL=https://api-854568123236.us-central1.run.app/v1
 
 substitutions:
   _REGION: us-central1
