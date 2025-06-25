@@ -6,6 +6,10 @@ A GCP Cloud Run HTTP server that authenticates users via Firebase Auth and Nostr
 
 - NIP-98 authentication middleware
 - Firebase Auth integration via Firestore
+- Nostr track upload and management
+- Audio compression with ffmpeg
+- GCS integration for file storage
+- Async processing via Cloud Functions
 - Heartbeat endpoint with deployed commit SHA
 - Cloud Run deployment ready
 
@@ -55,10 +59,115 @@ The event must be a kind 27235 event with:
 - Valid signature
 - Timestamp within 60 seconds
 
+## Architecture Overview
+
+### Infrastructure Components
+
+1. **API Service** (Cloud Run)
+   - Go backend handling authentication and track management
+   - Manages track metadata in Firestore
+   - Generates presigned URLs for direct GCS uploads
+   - Processes audio files with ffmpeg
+
+2. **Cloud Storage** (GCS)
+   - Bucket: `wavlake-audio`
+   - Stores original files in `tracks/original/`
+   - Stores compressed files in `tracks/compressed/`
+   - CORS configured for browser uploads
+
+3. **Cloud Function** (`process-audio-upload`)
+   - Triggered by GCS file uploads
+   - Calls API webhook when files land in `tracks/original/`
+
+4. **Firestore**
+   - Stores user data and NostrTrack metadata
+   - Collections: `users`, `nostr_tracks`
+
+### Track Upload Flow
+
+```
+1. User Initiates Upload (Web Client)
+   ↓
+2. Client creates NIP-98 auth event
+   ↓
+3. POST /v1/tracks/nostr (API)
+   - Validates NIP-98 auth
+   - Creates NostrTrack in Firestore
+   - Returns presigned URL
+   ↓
+4. Client uploads file directly to GCS
+   - Uses presigned URL
+   - File lands in tracks/original/{uuid}.mp3
+   ↓
+5. GCS triggers Cloud Function
+   - Detects new file in tracks/original/
+   - Extracts track ID from filename
+   ↓
+6. Cloud Function calls API webhook
+   - POST /v1/tracks/webhook/process
+   - Sends track_id and status
+   ↓
+7. API processes the track
+   - Downloads from GCS
+   - Uses ffmpeg to compress (128kbps MP3)
+   - Uploads compressed version to tracks/compressed/
+   - Updates Firestore with URLs and metadata
+   ↓
+8. Client publishes Nostr event
+   - Kind 31337 event with track info
+   - References compressed_url for streaming
+```
+
 ## Endpoints
 
 ### GET /heartbeat
 Returns server status and deployed commit SHA. This endpoint does not require authentication.
+
+### POST /v1/tracks/nostr
+Create a new Nostr track upload. Requires NIP-98 authentication.
+
+**Request:**
+```json
+{
+  "title": "Track Title",
+  "artist": "Artist Name",
+  "description": "Optional description",
+  "genre": "Electronic",
+  "tags": ["tag1", "tag2"]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "presigned_url": "https://...",
+  "original_url": "https://...",
+  "compressed_url": "https://...",
+  "status": "pending_upload"
+}
+```
+
+### GET /v1/tracks/my
+Get all tracks for the authenticated user. Requires NIP-98 authentication.
+
+### GET /v1/tracks/:id
+Get a specific track by ID. Public endpoint.
+
+### DELETE /v1/tracks/:id
+Delete a track. Requires NIP-98 authentication and ownership.
+
+### POST /v1/tracks/webhook/process
+Internal webhook endpoint called by Cloud Function to trigger audio processing.
+
+### POST /v1/auth/link-pubkey
+Link a Nostr pubkey to a Firebase account. Requires both Firebase and NIP-98 authentication.
+
+### GET /v1/auth/get-linked-pubkeys
+Get all linked pubkeys for a Firebase user. Requires Firebase authentication.
+
+### POST /v1/auth/unlink-pubkey
+Unlink a Nostr pubkey from a Firebase account. Requires Firebase authentication.
 
 ## Deployment
 
