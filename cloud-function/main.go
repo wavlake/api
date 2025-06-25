@@ -34,9 +34,12 @@ func ProcessAudioUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log the full event for debugging
+	log.Printf("Received GCS event - Bucket: %s, Name: %s", e.Data.Bucket, e.Data.Name)
+
 	// Only process files in the tracks/original/ path
 	if !strings.HasPrefix(e.Data.Name, "tracks/original/") {
-		log.Printf("Ignoring file outside tracks/original/: %s", e.Data.Name)
+		log.Printf("Ignoring file outside tracks/original/: '%s'", e.Data.Name)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
