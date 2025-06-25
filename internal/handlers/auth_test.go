@@ -298,12 +298,12 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_Linked() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	// Create gin context with authenticated pubkey
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	c.Set("pubkey", "test-pubkey-123")
-	
+
 	// Call handler directly with authenticated context
 	suite.handlers.CheckPubkeyLink(c)
 
@@ -329,11 +329,11 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_NotLinked() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	c.Set("pubkey", "unlinked-pubkey")
-	
+
 	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
@@ -351,11 +351,11 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_InvalidRequest() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer([]byte("{}")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	c.Set("pubkey", "test-pubkey")
-	
+
 	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
@@ -374,11 +374,11 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_UnauthorizedNoAuth() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	// No pubkey set - simulating missing auth
-	
+
 	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusUnauthorized, w.Code)
@@ -397,11 +397,11 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_ForbiddenWrongPubkey() {
 	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	c.Set("pubkey", "authenticated-pubkey")
-	
+
 	suite.handlers.CheckPubkeyLink(c)
 
 	assert.Equal(suite.T(), http.StatusForbidden, w.Code)

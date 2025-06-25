@@ -146,9 +146,9 @@ func main() {
 
 		// Dual auth required endpoint
 		authGroup.POST("/link-pubkey", dualAuthMiddleware.Middleware(), authHandlers.LinkPubkey)
-		
-		// NIP-98 auth required endpoint
-		authGroup.POST("/check-pubkey-link", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// NIP-98 signature validation only endpoint (no database lookup required)
+		authGroup.POST("/check-pubkey-link", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
@@ -289,7 +289,7 @@ func main() {
 	log.Printf("  GET  /v1/auth/get-linked-pubkeys (Firebase auth)")
 	log.Printf("  POST /v1/auth/unlink-pubkey (Firebase auth)")
 	log.Printf("  POST /v1/auth/link-pubkey (Dual auth: Firebase + NIP-98)")
-	log.Printf("  POST /v1/auth/check-pubkey-link (NIP-98 auth: Check own pubkey link status)")
+	log.Printf("  POST /v1/auth/check-pubkey-link (NIP-98 signature-only: Check own pubkey link status)")
 	log.Printf("  GET  /v1/tracks/:id (Public track info)")
 	log.Printf("  POST /v1/tracks/webhook/process (Processing webhook)")
 	log.Printf("  POST /v1/tracks/nostr (NIP-98 auth: Create track)")

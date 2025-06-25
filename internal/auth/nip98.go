@@ -36,7 +36,8 @@ func (m *NIP98Middleware) Close() error {
 	return m.firestoreClient.Close()
 }
 
-func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
+// SignatureValidationMiddleware validates NIP-98 signatures without database lookup
+func (m *NIP98Middleware) SignatureValidationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/heartbeat" {
 			next.ServeHTTP(w, r)
@@ -119,8 +120,24 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Only set the pubkey in context, no database lookup
+		ctx := context.WithValue(r.Context(), "pubkey", event.PubKey)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// DatabaseLookupMiddleware performs database lookup for authenticated pubkey
+func (m *NIP98Middleware) DatabaseLookupMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get the pubkey from context (should be set by SignatureValidationMiddleware)
+		pubkey, exists := r.Context().Value("pubkey").(string)
+		if !exists || pubkey == "" {
+			http.Error(w, "Missing pubkey in context", http.StatusUnauthorized)
+			return
+		}
+
 		ctx := context.Background()
-		auth, err := m.getNostrAuth(ctx, event.PubKey)
+		auth, err := m.getNostrAuth(ctx, pubkey)
 		if err != nil {
 			log.Printf("Failed to get auth: %v", err)
 			http.Error(w, "Authentication failed", http.StatusUnauthorized)
@@ -132,12 +149,17 @@ func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		go m.updateLastUsed(context.Background(), event.PubKey)
+		go m.updateLastUsed(context.Background(), pubkey)
 
-		ctx = context.WithValue(r.Context(), "pubkey", event.PubKey)
-		ctx = context.WithValue(ctx, "firebase_uid", auth.FirebaseUID)
+		// Add firebase_uid to context
+		ctx = context.WithValue(r.Context(), "firebase_uid", auth.FirebaseUID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// Middleware provides the full NIP-98 authentication (signature + database lookup)
+func (m *NIP98Middleware) Middleware(next http.Handler) http.Handler {
+	return m.SignatureValidationMiddleware(m.DatabaseLookupMiddleware(next))
 }
 
 func (m *NIP98Middleware) getNostrAuth(ctx context.Context, pubkey string) (*models.NostrAuth, error) {
