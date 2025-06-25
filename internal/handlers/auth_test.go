@@ -35,6 +35,9 @@ func (suite *AuthHandlerTestSuite) SetupTest() {
 	// Setup routes with mock middleware that sets auth context
 	auth := suite.router.Group("/v1/auth")
 	{
+		// Public endpoint (no auth required)
+		auth.POST("/check-pubkey-link", suite.handlers.CheckPubkeyLink)
+
 		auth.GET("/get-linked-pubkeys", suite.mockFirebaseAuth(), suite.handlers.GetLinkedPubkeys)
 		auth.POST("/unlink-pubkey", suite.mockFirebaseAuth(), suite.handlers.UnlinkPubkey)
 		auth.POST("/link-pubkey", suite.mockDualAuth(), suite.handlers.LinkPubkey)
@@ -283,6 +286,68 @@ func (suite *AuthHandlerTestSuite) TestEndpoints_MissingAuth() {
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.Contains(suite.T(), response["error"].(string), "authentication")
 	}
+}
+
+// Test CheckPubkeyLink endpoint
+func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_Linked() {
+	suite.userService.On("GetFirebaseUIDByPubkey", mock.Anything, "test-pubkey-123").Return("firebase-uid-456", nil)
+
+	requestBody := CheckPubkeyLinkRequest{
+		PubKey: "test-pubkey-123",
+	}
+
+	jsonBody, _ := json.Marshal(requestBody)
+	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response CheckPubkeyLinkResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.True(suite.T(), response.Success)
+	assert.True(suite.T(), response.IsLinked)
+	assert.Equal(suite.T(), "firebase-uid-456", response.FirebaseUID)
+	assert.Equal(suite.T(), "test-pubkey-123", response.PubKey)
+}
+
+func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_NotLinked() {
+	suite.userService.On("GetFirebaseUIDByPubkey", mock.Anything, "unlinked-pubkey").Return("", errors.New("pubkey not found"))
+
+	requestBody := CheckPubkeyLinkRequest{
+		PubKey: "unlinked-pubkey",
+	}
+
+	jsonBody, _ := json.Marshal(requestBody)
+	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response CheckPubkeyLinkResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.True(suite.T(), response.Success)
+	assert.False(suite.T(), response.IsLinked)
+	assert.Equal(suite.T(), "", response.FirebaseUID)
+	assert.Equal(suite.T(), "unlinked-pubkey", response.PubKey)
+}
+
+func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_InvalidRequest() {
+	req, _ := http.NewRequest("POST", "/v1/auth/check-pubkey-link", bytes.NewBuffer([]byte("{}")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
+
+	var response map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &response)
+	assert.Contains(suite.T(), response["error"], "pubkey is required")
 }
 
 func TestAuthHandlerTestSuite(t *testing.T) {

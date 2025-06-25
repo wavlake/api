@@ -189,6 +189,20 @@ func (s *UserService) GetLinkedPubkeys(ctx context.Context, firebaseUID string) 
 	return pubkeys, nil
 }
 
+// GetFirebaseUIDByPubkey returns the Firebase UID for a given pubkey if it's linked and active
+func (s *UserService) GetFirebaseUIDByPubkey(ctx context.Context, pubkey string) (string, error) {
+	nostrAuth, err := s.getNostrAuth(ctx, pubkey)
+	if err != nil {
+		return "", fmt.Errorf("pubkey not found: %w", err)
+	}
+
+	if !nostrAuth.Active {
+		return "", fmt.Errorf("pubkey is not active")
+	}
+
+	return nostrAuth.FirebaseUID, nil
+}
+
 // getNostrAuth retrieves a NostrAuth record by pubkey
 func (s *UserService) getNostrAuth(ctx context.Context, pubkey string) (*models.NostrAuth, error) {
 	doc, err := s.firestoreClient.Collection("nostr_auth").Doc(pubkey).Get(ctx)

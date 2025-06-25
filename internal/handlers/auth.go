@@ -196,3 +196,50 @@ func (h *AuthHandlers) GetLinkedPubkeys(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+// CheckPubkeyLinkRequest represents the request body for checking pubkey link status
+type CheckPubkeyLinkRequest struct {
+	PubKey string `json:"pubkey" binding:"required"`
+}
+
+// CheckPubkeyLinkResponse represents the response for checking pubkey link status
+type CheckPubkeyLinkResponse struct {
+	Success     bool   `json:"success"`
+	IsLinked    bool   `json:"is_linked"`
+	FirebaseUID string `json:"firebase_uid,omitempty"`
+	PubKey      string `json:"pubkey"`
+}
+
+// CheckPubkeyLink handles POST /v1/auth/check-pubkey-link
+// Public endpoint - no authentication required
+func (h *AuthHandlers) CheckPubkeyLink(c *gin.Context) {
+	var req CheckPubkeyLinkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body - pubkey is required"})
+		return
+	}
+
+	// Check if the pubkey is linked to any Firebase account
+	firebaseUID, err := h.userService.GetFirebaseUIDByPubkey(c.Request.Context(), req.PubKey)
+	if err != nil {
+		// If error is "not found", it means pubkey is not linked
+		response := CheckPubkeyLinkResponse{
+			Success:     true,
+			IsLinked:    false,
+			FirebaseUID: "",
+			PubKey:      req.PubKey,
+		}
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// Pubkey is linked
+	response := CheckPubkeyLinkResponse{
+		Success:     true,
+		IsLinked:    true,
+		FirebaseUID: firebaseUID,
+		PubKey:      req.PubKey,
+	}
+
+	c.JSON(http.StatusOK, response)
+}

@@ -29,3 +29,8 @@ func (m *MockUserService) GetLinkedPubkeys(ctx context.Context, firebaseUID stri
 	args := m.Called(ctx, firebaseUID)
 	return args.Get(0).([]models.NostrAuth), args.Error(1)
 }
+
+func (m *MockUserService) GetFirebaseUIDByPubkey(ctx context.Context, pubkey string) (string, error) {
+	args := m.Called(ctx, pubkey)
+	return args.String(0), args.Error(1)
+}

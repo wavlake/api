@@ -11,6 +11,7 @@ type UserServiceInterface interface {
 	LinkPubkeyToUser(ctx context.Context, pubkey, firebaseUID string) error
 	UnlinkPubkeyFromUser(ctx context.Context, pubkey, firebaseUID string) error
 	GetLinkedPubkeys(ctx context.Context, firebaseUID string) ([]models.NostrAuth, error)
+	GetFirebaseUIDByPubkey(ctx context.Context, pubkey string) (string, error)
 }
 
 // Ensure UserService implements the interface

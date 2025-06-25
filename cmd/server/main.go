@@ -140,6 +140,9 @@ func main() {
 	v1 := router.Group("/v1")
 	authGroup := v1.Group("/auth")
 	{
+		// Public endpoints (no auth required)
+		authGroup.POST("/check-pubkey-link", authHandlers.CheckPubkeyLink)
+
 		// Firebase auth only endpoints
 		authGroup.GET("/get-linked-pubkeys", firebaseMiddleware.Middleware(), authHandlers.GetLinkedPubkeys)
 		authGroup.POST("/unlink-pubkey", firebaseMiddleware.Middleware(), authHandlers.UnlinkPubkey)
@@ -276,6 +279,7 @@ func main() {
 	log.Printf("Starting server on port %s", port)
 	log.Printf("Endpoints available:")
 	log.Printf("  GET  /heartbeat")
+	log.Printf("  POST /v1/auth/check-pubkey-link (Public: Check if pubkey is linked)")
 	log.Printf("  GET  /v1/auth/get-linked-pubkeys (Firebase auth)")
 	log.Printf("  POST /v1/auth/unlink-pubkey (Firebase auth)")
 	log.Printf("  POST /v1/auth/link-pubkey (Dual auth: Firebase + NIP-98)")
