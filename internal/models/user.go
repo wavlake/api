@@ -62,3 +62,9 @@ type NostrTrack struct {
 	CompressedURL string `firestore:"compressed_url,omitempty" json:"compressed_url,omitempty"` // Legacy compressed file
 	IsCompressed  bool   `firestore:"is_compressed" json:"is_compressed"`                       // Legacy compression status
 }
+
+// VersionUpdate represents a request to update compression version visibility
+type VersionUpdate struct {
+	VersionID string `json:"version_id"`
+	IsPublic  bool   `json:"is_public"`
+}

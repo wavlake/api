@@ -226,10 +226,7 @@ func (s *NostrTrackService) HardDeleteTrack(ctx context.Context, trackID string)
 }
 
 // UpdateCompressionVisibility updates which compression versions are public
-func (s *NostrTrackService) UpdateCompressionVisibility(ctx context.Context, trackID string, updates []struct {
-	VersionID string `json:"version_id"`
-	IsPublic  bool   `json:"is_public"`
-}) error {
+func (s *NostrTrackService) UpdateCompressionVisibility(ctx context.Context, trackID string, updates []models.VersionUpdate) error {
 	// Get current track
 	track, err := s.GetTrack(ctx, trackID)
 	if err != nil {

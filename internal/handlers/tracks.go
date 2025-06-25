@@ -35,6 +35,7 @@ type CreateTrackResponse struct {
 	Success bool               `json:"success"`
 	Data    *models.NostrTrack `json:"data,omitempty"`
 	Error   string             `json:"error,omitempty"`
+	Message string             `json:"message,omitempty"`
 }
 
 // CreateTrackNostr creates a new track via NIP-98 authentication
@@ -576,10 +577,7 @@ func (h *TracksHandler) UpdateCompressionVisibility(c *gin.Context) {
 	}
 
 	type UpdateVisibilityRequest struct {
-		VersionUpdates []struct {
-			VersionID string `json:"version_id" binding:"required"`
-			IsPublic  bool   `json:"is_public"`
-		} `json:"version_updates" binding:"required,min=1"`
+		VersionUpdates []models.VersionUpdate `json:"version_updates" binding:"required,min=1"`
 	}
 
 	var req UpdateVisibilityRequest
