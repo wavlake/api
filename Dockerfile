@@ -15,7 +15,10 @@ ENV COMMIT_SHA=${COMMIT_SHA}
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X main.commitSHA=${COMMIT_SHA}" -o server ./cmd/server
 
-FROM gcr.io/distroless/static-debian12
+FROM alpine:3.19
+
+# Install ffmpeg and ca-certificates
+RUN apk add --no-cache ffmpeg ca-certificates
 
 COPY --from=builder /app/server /server
 

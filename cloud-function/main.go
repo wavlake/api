@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -11,44 +12,62 @@ import (
 	"time"
 )
 
-// GCSEvent represents a Cloud Storage event
-type GCSEvent struct {
-	Bucket         string    `json:"bucket"`
+// GCSObject represents a Cloud Storage object notification
+type GCSObject struct {
+	Kind           string    `json:"kind"`
+	ID             string    `json:"id"`
+	SelfLink       string    `json:"selfLink"`
 	Name           string    `json:"name"`
+	Bucket         string    `json:"bucket"`
+	Generation     string    `json:"generation"`
 	Metageneration string    `json:"metageneration"`
+	ContentType    string    `json:"contentType"`
 	TimeCreated    time.Time `json:"timeCreated"`
 	Updated        time.Time `json:"updated"`
-}
-
-// CloudEvent represents the Cloud Function event wrapper
-type CloudEvent struct {
-	Data GCSEvent `json:"data"`
+	StorageClass   string    `json:"storageClass"`
+	Size           string    `json:"size"`
+	MD5Hash        string    `json:"md5Hash"`
+	MediaLink      string    `json:"mediaLink"`
+	CRC32C         string    `json:"crc32c"`
+	Etag           string    `json:"etag"`
 }
 
 // ProcessAudioUpload is triggered when a file is uploaded to GCS
 func ProcessAudioUpload(w http.ResponseWriter, r *http.Request) {
-	var e CloudEvent
-	if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+	// Read the raw body for debugging
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed to read request body: %v", err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	
+	// Log raw event for debugging
+	log.Printf("Raw event body: %s", string(body))
+	
+	// Parse the event
+	var gcsObject GCSObject
+	if err := json.Unmarshal(body, &gcsObject); err != nil {
 		log.Printf("Failed to decode event: %v", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	// Log the full event for debugging
-	log.Printf("Received GCS event - Bucket: %s, Name: %s", e.Data.Bucket, e.Data.Name)
+	log.Printf("Received GCS event - Bucket: %s, Name: %s", gcsObject.Bucket, gcsObject.Name)
 
 	// Only process files in the tracks/original/ path
-	if !strings.HasPrefix(e.Data.Name, "tracks/original/") {
-		log.Printf("Ignoring file outside tracks/original/: '%s'", e.Data.Name)
+	if !strings.HasPrefix(gcsObject.Name, "tracks/original/") {
+		log.Printf("Ignoring file outside tracks/original/: '%s'", gcsObject.Name)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	// Extract track ID from filename
 	// Format: tracks/original/uuid.extension
-	parts := strings.Split(e.Data.Name, "/")
+	parts := strings.Split(gcsObject.Name, "/")
 	if len(parts) != 3 {
-		log.Printf("Invalid file path format: %s", e.Data.Name)
+		log.Printf("Invalid file path format: %s", gcsObject.Name)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -56,7 +75,7 @@ func ProcessAudioUpload(w http.ResponseWriter, r *http.Request) {
 	filename := parts[2]
 	trackID := strings.TrimSuffix(filename, "."+getFileExtension(filename))
 
-	log.Printf("Processing track upload: %s (file: %s)", trackID, e.Data.Name)
+	log.Printf("Processing track upload: %s (file: %s)", trackID, gcsObject.Name)
 
 	// Call the API to trigger processing
 	if err := triggerProcessing(trackID); err != nil {
