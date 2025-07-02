@@ -41,7 +41,14 @@ func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 	// Get user data
 	user, err := h.postgresService.GetUserByFirebaseUID(ctx, firebaseUID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found in legacy system"})
+		// Return empty response for user not found
+		response := UserMetadataResponse{
+			User:    nil,
+			Artists: []models.LegacyArtist{},
+			Albums:  []models.LegacyAlbum{},
+			Tracks:  []models.LegacyTrack{},
+		}
+		c.JSON(http.StatusOK, response)
 		return
 	}
 
@@ -87,8 +94,8 @@ func (h *LegacyHandler) GetUserTracks(c *gin.Context) {
 
 	tracks, err := h.postgresService.GetUserTracks(ctx, firebaseUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
-		return
+		// Return empty array instead of error
+		tracks = []models.LegacyTrack{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tracks": tracks})
@@ -107,8 +114,8 @@ func (h *LegacyHandler) GetUserArtists(c *gin.Context) {
 
 	artists, err := h.postgresService.GetUserArtists(ctx, firebaseUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch artists"})
-		return
+		// Return empty array instead of error
+		artists = []models.LegacyArtist{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"artists": artists})
@@ -127,8 +134,8 @@ func (h *LegacyHandler) GetUserAlbums(c *gin.Context) {
 
 	albums, err := h.postgresService.GetUserAlbums(ctx, firebaseUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch albums"})
-		return
+		// Return empty array instead of error
+		albums = []models.LegacyAlbum{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"albums": albums})
@@ -147,8 +154,8 @@ func (h *LegacyHandler) GetTracksByArtist(c *gin.Context) {
 
 	tracks, err := h.postgresService.GetTracksByArtist(ctx, artistID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
-		return
+		// Return empty array instead of error
+		tracks = []models.LegacyTrack{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tracks": tracks})
@@ -167,8 +174,8 @@ func (h *LegacyHandler) GetTracksByAlbum(c *gin.Context) {
 
 	tracks, err := h.postgresService.GetTracksByAlbum(ctx, albumID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
-		return
+		// Return empty array instead of error
+		tracks = []models.LegacyTrack{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tracks": tracks})

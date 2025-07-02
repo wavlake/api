@@ -1,38 +1,80 @@
+# Cloud Build configuration for API service
+# Used for both manual deployments and automated CI/CD
+
 steps:
-  # Build the container image
+  # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
+      '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:${_IMAGE_TAG}',
       '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
-      '--build-arg', 'COMMIT_SHA=latest',
+      '--build-arg', 'COMMIT_SHA=${_IMAGE_TAG}',
+      '--cache-from', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
       '.'
     ]
-  
-  # Push the container image to Artifact Registry
+
+  # Step 2: Push the Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest']
-  
-  # Deploy container image to Cloud Run
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api']
+
+  # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: [
       'run', 'deploy', 'api',
-      '--image', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
+      '--image', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:${_IMAGE_TAG}',
       '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--set-env-vars', 'COMMIT_SHA=latest,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=wavlake-audio',
+      '--set-env-vars', 'COMMIT_SHA=${_IMAGE_TAG},GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=${_GCS_BUCKET}',
       '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest',
-      '--vpc-connector', 'cloud-sql-postgres',
-      '--service-account', 'api-service@wavlake-alpha.iam.gserviceaccount.com'
+      '--vpc-connector', '${_VPC_CONNECTOR}',
+      '--service-account', '${_SERVICE_ACCOUNT}',
+      '--min-instances', '${_MIN_INSTANCES}',
+      '--max-instances', '${_MAX_INSTANCES}',
+      '--memory', '${_MEMORY}',
+      '--cpu', '${_CPU}',
+      '--timeout', '${_TIMEOUT}',
+      '--concurrency', '${_CONCURRENCY}'
     ]
-  
-  # TODO: Deploy Cloud Function manually for now due to permission issues
-  # gcloud functions deploy process-audio-upload --gen2 --runtime go122 --trigger-bucket wavlake-audio --source ./cloud-function --entry-point ProcessAudioUpload --region us-central1 --set-env-vars API_BASE_URL=https://api-854568123236.us-central1.run.app/v1
 
+  # Step 4: Run smoke tests
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        SERVICE_URL=$(gcloud run services describe api --platform managed --region ${_REGION} --format 'value(status.url)')
+        echo "Testing service at: $${SERVICE_URL}"
+        curl -f "$${SERVICE_URL}/heartbeat" || exit 1
+        echo "Smoke test passed!"
+
+# Substitution variables with defaults
 substitutions:
   _REGION: us-central1
   _REPOSITORY: api-repo
+  _SERVICE_ACCOUNT: api-service@wavlake-alpha.iam.gserviceaccount.com
+  _VPC_CONNECTOR: cloud-sql-postgres
+  _GCS_BUCKET: wavlake-audio
+  _IMAGE_TAG: 'manual-build'
+  _MIN_INSTANCES: '0'
+  _MAX_INSTANCES: '10'
+  _MEMORY: '1Gi'
+  _CPU: '1'
+  _TIMEOUT: '300s'
+  _CONCURRENCY: '80'
 
+# Build configuration options
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'
+  substitutionOption: 'ALLOW_LOOSE'
+
+# Build timeout (45 minutes)
+timeout: '2700s'
+
+# Tags for organizing builds
+tags:
+  - 'api'
+  - 'production'
+  - '$BRANCH_NAME'
