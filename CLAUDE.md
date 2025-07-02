@@ -51,6 +51,11 @@ export GOOGLE_CLOUD_PROJECT=your-project-id
 export PORT=8080
 export GCS_BUCKET_NAME=wavlake-audio
 export TEMP_DIR=/tmp
+
+# PostgreSQL Configuration (optional - for legacy data access)
+export PROD_POSTGRES_CONNECTION_STRING_RO="postgres://user:pass@host:5432/dbname?sslmode=require"
+export POSTGRES_MAX_CONNECTIONS=10
+export POSTGRES_MAX_IDLE_CONNECTIONS=5
 ```
 
 ## Architecture Overview
@@ -81,6 +86,9 @@ authGroup.POST("/check-pubkey-link", nip98Middleware.SignatureValidationMiddlewa
 // Full NIP-98 with database lookup
 authGroup.POST("/tracks/nostr", nip98Middleware.Middleware(), handler)
 
+// NIP-98 with Firebase UID lookup (for legacy endpoints)
+legacyGroup.GET("/metadata", nip98Middleware.Middleware(), handler)
+
 // Dual authentication required
 authGroup.POST("/link-pubkey", dualAuthMiddleware.Middleware(), handler)
 ```
@@ -92,12 +100,20 @@ Services follow interface-driven design patterns defined in `internal/services/i
 - **NostrTrackService**: Handles audio track lifecycle, compression versions, and visibility
 - **StorageService**: Abstracts Google Cloud Storage operations and presigned URLs
 - **ProcessingService**: Orchestrates asynchronous audio processing with FFmpeg
+- **PostgresService**: Provides read-only access to legacy PostgreSQL database for user metadata
 
 ### Data Model Patterns
 - **Firestore Collections**: `users`, `nostr_auth`, `nostr_tracks`
+- **PostgreSQL Legacy Tables**: `users`, `artists`, `albums`, `tracks` (read-only access)
 - **Transactional Updates**: Ensures consistency between User and NostrAuth collections
 - **Denormalization**: ActivePubkeys stored in User model for performance
 - **Soft Deletes**: Tracks marked as deleted rather than physically removed
+
+### Legacy Data Integration
+- **PostgreSQL Connection**: Via VPC connector for secure private network access
+- **Authentication Flow**: NIP-98 signature → linked Firebase UID → PostgreSQL queries
+- **Graceful Handling**: Returns empty arrays for users with no legacy data
+- **Connection Pooling**: Configurable max connections and idle connections
 
 ### Request/Response Flow
 1. **Middleware Chain**: CORS → Auth → Handler
@@ -154,6 +170,12 @@ CORS configuration in `cmd/server/main.go` includes specific origins. When addin
 - ActivePubkeys array in User model must stay in sync
 - Check transaction rollback on errors
 
+### Legacy Endpoint Issues
+- **PostgreSQL Connection**: Verify `PROD_POSTGRES_CONNECTION_STRING_RO` is set and VPC connector is configured
+- **Empty Responses**: Legacy endpoints return empty arrays (not errors) when no data exists for a user
+- **Authentication**: Legacy endpoints require NIP-98 signatures with linked Firebase UIDs
+- **VPC Connectivity**: Ensure `cloud-sql-postgres` VPC connector allows private IP access to Cloud SQL
+
 ## Testing
 
 ### Integration Tests
@@ -167,6 +189,36 @@ go test -v ./internal/handlers -run TestAuthHandlers
 
 ### Mock Generation
 Mocks are manually created in `internal/mocks/` following the interface patterns. When adding new service methods, update corresponding mocks.
+
+## Legacy API Endpoints
+
+The API provides read-only access to legacy PostgreSQL data via NIP-98 authenticated endpoints:
+
+### Available Endpoints
+- `GET /v1/legacy/metadata` - Complete user metadata (user, artists, albums, tracks)
+- `GET /v1/legacy/tracks` - User's tracks from legacy system
+- `GET /v1/legacy/artists` - User's artists from legacy system
+- `GET /v1/legacy/albums` - User's albums from legacy system
+- `GET /v1/legacy/artists/:artist_id/tracks` - Tracks for specific artist
+- `GET /v1/legacy/albums/:album_id/tracks` - Tracks for specific album
+
+### Authentication
+All legacy endpoints require:
+1. **NIP-98 signature** in `X-Nostr-Authorization` header
+2. **Linked Firebase UID** - the pubkey must be linked to a Firebase UID
+3. **PostgreSQL access** - the Firebase UID must exist in the legacy database
+
+### Response Format
+See `LEGACY_API_TYPES.md` for complete TypeScript interfaces. All endpoints return:
+- **200 OK** with data (or empty arrays if no data found)
+- **401 Unauthorized** if NIP-98 signature is invalid
+- **401 Unauthorized** if pubkey is not linked to Firebase UID
+
+### Error Handling
+Legacy endpoints use graceful error handling:
+- Missing users return empty metadata response with `user: null`
+- Missing tracks/artists/albums return empty arrays `[]`
+- No 500 errors for missing data - always returns valid JSON structure
 
 ## Deployment
 
