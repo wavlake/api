@@ -3,27 +3,28 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$COMMIT_SHA',
-      '--build-arg', 'COMMIT_SHA=$COMMIT_SHA',
+      '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
+      '--build-arg', 'COMMIT_SHA=latest',
       '.'
     ]
   
   # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$COMMIT_SHA']
+    args: ['push', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest']
   
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: [
       'run', 'deploy', 'api',
-      '--image', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:$COMMIT_SHA',
+      '--image', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api:latest',
       '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=wavlake-audio',
+      '--set-env-vars', 'COMMIT_SHA=latest,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=wavlake-audio',
       '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest',
-      '--service-account', '${_SERVICE_ACCOUNT}'
+      '--vpc-connector', 'cloud-sql-postgres',
+      '--service-account', 'api-service@wavlake-alpha.iam.gserviceaccount.com'
     ]
   
   # TODO: Deploy Cloud Function manually for now due to permission issues
@@ -32,8 +33,6 @@ steps:
 substitutions:
   _REGION: us-central1
   _REPOSITORY: api-repo
-  _SERVICE_ACCOUNT: api-service@${PROJECT_ID}.iam.gserviceaccount.com
-  _PROJECT_NUMBER: '854568123236'
 
 options:
   logging: CLOUD_LOGGING_ONLY
