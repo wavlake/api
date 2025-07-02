@@ -68,3 +68,79 @@ type VersionUpdate struct {
 	VersionID string `json:"version_id"`
 	IsPublic  bool   `json:"is_public"`
 }
+
+// Legacy PostgreSQL Models
+// These models map to the legacy catalog API's PostgreSQL database
+
+type LegacyUser struct {
+	ID               string    `db:"id" json:"id"`
+	Name             string    `db:"name" json:"name"`
+	LightningAddress string    `db:"lightning_address" json:"lightning_address"`
+	MSatBalance      int64     `db:"msat_balance" json:"msat_balance"`
+	AmpMsat          int       `db:"amp_msat" json:"amp_msat"`
+	ArtworkURL       string    `db:"artwork_url" json:"artwork_url"`
+	ProfileURL       string    `db:"profile_url" json:"profile_url"`
+	IsLocked         bool      `db:"is_locked" json:"is_locked"`
+	CreatedAt        time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt        time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type LegacyTrack struct {
+	ID              string    `db:"id" json:"id"`
+	ArtistID        string    `db:"artist_id" json:"artist_id"`
+	AlbumID         string    `db:"album_id" json:"album_id"`
+	Title           string    `db:"title" json:"title"`
+	Order           int       `db:"order" json:"order"`
+	PlayCount       int       `db:"play_count" json:"play_count"`
+	MSatTotal       int64     `db:"msat_total" json:"msat_total"`
+	LiveURL         string    `db:"live_url" json:"live_url"`
+	RawURL          string    `db:"raw_url" json:"raw_url"`
+	Size            int       `db:"size" json:"size"`
+	Duration        int       `db:"duration" json:"duration"`
+	IsProcessing    bool      `db:"is_processing" json:"is_processing"`
+	IsDraft         bool      `db:"is_draft" json:"is_draft"`
+	IsExplicit      bool      `db:"is_explicit" json:"is_explicit"`
+	CompressorError bool      `db:"compressor_error" json:"compressor_error"`
+	Deleted         bool      `db:"deleted" json:"deleted"`
+	Lyrics          string    `db:"lyrics" json:"lyrics"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
+	PublishedAt     time.Time `db:"published_at" json:"published_at"`
+}
+
+type LegacyArtist struct {
+	ID         string    `db:"id" json:"id"`
+	UserID     string    `db:"user_id" json:"user_id"`
+	Name       string    `db:"name" json:"name"`
+	ArtworkURL string    `db:"artwork_url" json:"artwork_url"`
+	ArtistURL  string    `db:"artist_url" json:"artist_url"`
+	Bio        string    `db:"bio" json:"bio"`
+	Twitter    string    `db:"twitter" json:"twitter"`
+	Instagram  string    `db:"instagram" json:"instagram"`
+	Youtube    string    `db:"youtube" json:"youtube"`
+	Website    string    `db:"website" json:"website"`
+	Npub       string    `db:"npub" json:"npub"`
+	Verified   bool      `db:"verified" json:"verified"`
+	Deleted    bool      `db:"deleted" json:"deleted"`
+	MSatTotal  int64     `db:"msat_total" json:"msat_total"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type LegacyAlbum struct {
+	ID              string    `db:"id" json:"id"`
+	ArtistID        string    `db:"artist_id" json:"artist_id"`
+	Title           string    `db:"title" json:"title"`
+	ArtworkURL      string    `db:"artwork_url" json:"artwork_url"`
+	Description     string    `db:"description" json:"description"`
+	GenreID         int       `db:"genre_id" json:"genre_id"`
+	SubgenreID      int       `db:"subgenre_id" json:"subgenre_id"`
+	IsDraft         bool      `db:"is_draft" json:"is_draft"`
+	IsSingle        bool      `db:"is_single" json:"is_single"`
+	Deleted         bool      `db:"deleted" json:"deleted"`
+	MSatTotal       int64     `db:"msat_total" json:"msat_total"`
+	IsFeedPublished bool      `db:"is_feed_published" json:"is_feed_published"`
+	PublishedAt     time.Time `db:"published_at" json:"published_at"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
+}

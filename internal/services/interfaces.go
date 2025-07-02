@@ -14,5 +14,15 @@ type UserServiceInterface interface {
 	GetFirebaseUIDByPubkey(ctx context.Context, pubkey string) (string, error)
 }
 
+// PostgresServiceInterface defines the interface for PostgreSQL operations
+type PostgresServiceInterface interface {
+	GetUserByFirebaseUID(ctx context.Context, firebaseUID string) (*models.LegacyUser, error)
+	GetUserTracks(ctx context.Context, firebaseUID string) ([]models.LegacyTrack, error)
+	GetUserArtists(ctx context.Context, firebaseUID string) ([]models.LegacyArtist, error)
+	GetUserAlbums(ctx context.Context, firebaseUID string) ([]models.LegacyAlbum, error)
+	GetTracksByArtist(ctx context.Context, artistID string) ([]models.LegacyTrack, error)
+	GetTracksByAlbum(ctx context.Context, albumID string) ([]models.LegacyTrack, error)
+}
+
 // Ensure UserService implements the interface
 var _ UserServiceInterface = (*UserService)(nil)

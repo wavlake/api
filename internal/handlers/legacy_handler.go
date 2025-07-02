@@ -1,0 +1,175 @@
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/wavlake/api/internal/models"
+	"github.com/wavlake/api/internal/services"
+)
+
+type LegacyHandler struct {
+	postgresService services.PostgresServiceInterface
+}
+
+// NewLegacyHandler creates a new legacy handler
+func NewLegacyHandler(postgresService services.PostgresServiceInterface) *LegacyHandler {
+	return &LegacyHandler{
+		postgresService: postgresService,
+	}
+}
+
+// UserMetadataResponse represents the complete user metadata response
+type UserMetadataResponse struct {
+	User    *models.LegacyUser    `json:"user"`
+	Artists []models.LegacyArtist `json:"artists"`
+	Albums  []models.LegacyAlbum  `json:"albums"`
+	Tracks  []models.LegacyTrack  `json:"tracks"`
+}
+
+// GetUserMetadata handles GET /v1/legacy/metadata
+// Returns all user metadata from the legacy PostgreSQL system
+func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
+	firebaseUID := c.GetString("firebase_uid")
+	if firebaseUID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Get user data
+	user, err := h.postgresService.GetUserByFirebaseUID(ctx, firebaseUID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found in legacy system"})
+		return
+	}
+
+	// Get associated data (continue even if some fail)
+	artists, err := h.postgresService.GetUserArtists(ctx, firebaseUID)
+	if err != nil {
+		// Log error but continue
+		artists = []models.LegacyArtist{}
+	}
+
+	albums, err := h.postgresService.GetUserAlbums(ctx, firebaseUID)
+	if err != nil {
+		// Log error but continue
+		albums = []models.LegacyAlbum{}
+	}
+
+	tracks, err := h.postgresService.GetUserTracks(ctx, firebaseUID)
+	if err != nil {
+		// Log error but continue
+		tracks = []models.LegacyTrack{}
+	}
+
+	response := UserMetadataResponse{
+		User:    user,
+		Artists: artists,
+		Albums:  albums,
+		Tracks:  tracks,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetUserTracks handles GET /v1/legacy/tracks
+// Returns user's tracks from the legacy system
+func (h *LegacyHandler) GetUserTracks(c *gin.Context) {
+	firebaseUID := c.GetString("firebase_uid")
+	if firebaseUID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	tracks, err := h.postgresService.GetUserTracks(ctx, firebaseUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"tracks": tracks})
+}
+
+// GetUserArtists handles GET /v1/legacy/artists
+// Returns user's artists from the legacy system
+func (h *LegacyHandler) GetUserArtists(c *gin.Context) {
+	firebaseUID := c.GetString("firebase_uid")
+	if firebaseUID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	artists, err := h.postgresService.GetUserArtists(ctx, firebaseUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch artists"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"artists": artists})
+}
+
+// GetUserAlbums handles GET /v1/legacy/albums
+// Returns user's albums from the legacy system
+func (h *LegacyHandler) GetUserAlbums(c *gin.Context) {
+	firebaseUID := c.GetString("firebase_uid")
+	if firebaseUID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	albums, err := h.postgresService.GetUserAlbums(ctx, firebaseUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch albums"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"albums": albums})
+}
+
+// GetTracksByArtist handles GET /v1/legacy/artists/:artist_id/tracks
+// Returns tracks for a specific artist
+func (h *LegacyHandler) GetTracksByArtist(c *gin.Context) {
+	artistID := c.Param("artist_id")
+	if artistID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Artist ID is required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	tracks, err := h.postgresService.GetTracksByArtist(ctx, artistID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"tracks": tracks})
+}
+
+// GetTracksByAlbum handles GET /v1/legacy/albums/:album_id/tracks
+// Returns tracks for a specific album
+func (h *LegacyHandler) GetTracksByAlbum(c *gin.Context) {
+	albumID := c.Param("album_id")
+	if albumID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Album ID is required"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	tracks, err := h.postgresService.GetTracksByAlbum(ctx, albumID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tracks"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"tracks": tracks})
+}

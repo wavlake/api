@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -13,12 +15,23 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/wavlake/api/internal/auth"
 	"github.com/wavlake/api/internal/handlers"
 	"github.com/wavlake/api/internal/services"
 	"github.com/wavlake/api/internal/utils"
 	"google.golang.org/api/option"
 )
+
+// getEnvAsInt returns an environment variable as an integer with a default value
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
 
 func main() {
 	port := os.Getenv("PORT")
@@ -76,6 +89,35 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
+	// Initialize PostgreSQL connection (optional)
+	var postgresService services.PostgresServiceInterface
+	pgConnStr := os.Getenv("PROD_POSTGRES_CONNECTION_STRING_RO")
+	if pgConnStr != "" {
+		maxOpenConns := getEnvAsInt("POSTGRES_MAX_CONNECTIONS", 10)
+		maxIdleConns := getEnvAsInt("POSTGRES_MAX_IDLE_CONNECTIONS", 5)
+
+		db, err := sql.Open("postgres", pgConnStr)
+		if err != nil {
+			log.Fatalf("Failed to open PostgreSQL connection: %v", err)
+		}
+		defer db.Close()
+
+		// Configure connection pool
+		db.SetMaxOpenConns(maxOpenConns)
+		db.SetMaxIdleConns(maxIdleConns)
+		db.SetConnMaxLifetime(time.Hour)
+
+		// Test connection
+		if err := db.PingContext(ctx); err != nil {
+			log.Printf("PostgreSQL connection test failed: %v", err)
+		} else {
+			postgresService = services.NewPostgresService(db)
+			log.Println("PostgreSQL connection established successfully")
+		}
+	} else {
+		log.Println("PostgreSQL connection string not provided, skipping PostgreSQL setup")
+	}
+
 	// Initialize services
 	userService := services.NewUserService(firestoreClient)
 	storageService, err := services.NewStorageService(ctx, bucketName)
@@ -99,6 +141,12 @@ func main() {
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(userService)
 	tracksHandler := handlers.NewTracksHandler(nostrTrackService, processingService, audioProcessor)
+
+	// Initialize legacy handler if PostgreSQL is available
+	var legacyHandler *handlers.LegacyHandler
+	if postgresService != nil {
+		legacyHandler = handlers.NewLegacyHandler(postgresService)
+	}
 
 	// Set up Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -282,6 +330,84 @@ func main() {
 		}))))
 	}
 
+	// Legacy endpoints (NIP-98 auth required, PostgreSQL-backed)
+	if legacyHandler != nil {
+		legacyGroup := v1.Group("/legacy")
+		{
+			legacyGroup.GET("/metadata", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetUserMetadata(c)
+			}))))
+
+			legacyGroup.GET("/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetUserTracks(c)
+			}))))
+
+			legacyGroup.GET("/artists", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetUserArtists(c)
+			}))))
+
+			legacyGroup.GET("/albums", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetUserAlbums(c)
+			}))))
+
+			legacyGroup.GET("/artists/:artist_id/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetTracksByArtist(c)
+			}))))
+
+			legacyGroup.GET("/albums/:album_id/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				c, _ := gin.CreateTestContext(w)
+				c.Request = r
+				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
+					c.Set("pubkey", pubkey)
+				}
+				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
+					c.Set("firebase_uid", firebaseUID)
+				}
+				legacyHandler.GetTracksByAlbum(c)
+			}))))
+		}
+	}
+
 	// Start server
 	log.Printf("Starting server on port %s", port)
 	log.Printf("Endpoints available:")
@@ -300,6 +426,15 @@ func main() {
 	log.Printf("  POST /v1/tracks/:id/compress (NIP-98 auth: Request compression versions)")
 	log.Printf("  PUT  /v1/tracks/:id/compression-visibility (NIP-98 auth: Update version visibility)")
 	log.Printf("  GET  /v1/tracks/:id/public-versions (NIP-98 auth: Get public versions for Nostr)")
+
+	if legacyHandler != nil {
+		log.Printf("  GET  /v1/legacy/metadata (NIP-98 auth: Get all user metadata from legacy system)")
+		log.Printf("  GET  /v1/legacy/tracks (NIP-98 auth: Get user tracks from legacy system)")
+		log.Printf("  GET  /v1/legacy/artists (NIP-98 auth: Get user artists from legacy system)")
+		log.Printf("  GET  /v1/legacy/albums (NIP-98 auth: Get user albums from legacy system)")
+		log.Printf("  GET  /v1/legacy/artists/:artist_id/tracks (NIP-98 auth: Get tracks by artist)")
+		log.Printf("  GET  /v1/legacy/albums/:album_id/tracks (NIP-98 auth: Get tracks by album)")
+	}
 
 	go func() {
 		if err := router.Run(":" + port); err != nil {
