@@ -22,7 +22,7 @@ steps:
       '--platform', 'managed',
       '--allow-unauthenticated',
       '--set-env-vars', 'COMMIT_SHA=$COMMIT_SHA,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=wavlake-audio',
-      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest',
+      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest',
       '--service-account', '${_SERVICE_ACCOUNT}'
     ]
   
