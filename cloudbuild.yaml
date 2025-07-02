@@ -17,7 +17,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/api']
 
-  # Step 3: Deploy to Cloud Run
+  # Step 3: Deploy to Cloud Run with S3 support
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: [
@@ -26,8 +26,10 @@ steps:
       '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--set-env-vars', 'COMMIT_SHA=${_IMAGE_TAG},GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=${_GCS_BUCKET}',
-      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest',
+      # Environment variables - supports both GCS and S3
+      '--set-env-vars', 'COMMIT_SHA=${_IMAGE_TAG},GOOGLE_CLOUD_PROJECT=$PROJECT_ID,STORAGE_PROVIDER=${_STORAGE_PROVIDER},GCS_BUCKET_NAME=${_GCS_BUCKET},AWS_REGION=us-east-2,AWS_S3_BUCKET_NAME=${_S3_BUCKET},AWS_S3_RAW_PREFIX=raw,AWS_S3_TRACK_PREFIX=track,AWS_S3_IMAGE_PREFIX=image,TEMP_DIR=/tmp',
+      # Secrets - includes both existing and new AWS secrets
+      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest,AWS_ACCESS_KEY_ID=aws-access-key-id:latest,AWS_SECRET_ACCESS_KEY=${_AWS_SECRET}:latest',
       '--vpc-connector', '${_VPC_CONNECTOR}',
       '--service-account', '${_SERVICE_ACCOUNT}',
       '--min-instances', '${_MIN_INSTANCES}',
@@ -51,11 +53,11 @@ steps:
 
 # Substitution variables with defaults
 substitutions:
+  # Existing configuration (unchanged)
   _REGION: us-central1
   _REPOSITORY: api-repo
   _SERVICE_ACCOUNT: api-service@wavlake-alpha.iam.gserviceaccount.com
   _VPC_CONNECTOR: cloud-sql-postgres
-  _GCS_BUCKET: wavlake-audio
   _IMAGE_TAG: 'manual-build'
   _MIN_INSTANCES: '0'
   _MAX_INSTANCES: '10'
@@ -63,6 +65,16 @@ substitutions:
   _CPU: '1'
   _TIMEOUT: '300s'
   _CONCURRENCY: '80'
+  
+  # Storage configuration - choose storage provider
+  _STORAGE_PROVIDER: gcs  # Change to 's3' for S3 migration
+  
+  # GCS configuration (existing)
+  _GCS_BUCKET: wavlake-audio
+  
+  # S3 configuration (new)
+  _S3_BUCKET: staging-wavlake-media  # or wavlake-media for production
+  _AWS_SECRET: AWS_S3_MEDIA_SECRET_STAGING  # or AWS_S3_MEDIA_SECRET_PROD for production
 
 # Build configuration options
 options:

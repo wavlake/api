@@ -14,18 +14,20 @@ import (
 )
 
 type ProcessingService struct {
-	storageService    *StorageService
+	storageService    StorageServiceInterface
 	nostrTrackService *NostrTrackService
 	audioProcessor    *utils.AudioProcessor
 	tempDir           string
+	pathConfig        *utils.StoragePathConfig
 }
 
-func NewProcessingService(storageService *StorageService, nostrTrackService *NostrTrackService, audioProcessor *utils.AudioProcessor, tempDir string) *ProcessingService {
+func NewProcessingService(storageService StorageServiceInterface, nostrTrackService *NostrTrackService, audioProcessor *utils.AudioProcessor, tempDir string) *ProcessingService {
 	return &ProcessingService{
 		storageService:    storageService,
 		nostrTrackService: nostrTrackService,
 		audioProcessor:    audioProcessor,
 		tempDir:           tempDir,
+		pathConfig:        utils.GetStoragePathConfig(),
 	}
 }
 
@@ -71,7 +73,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 	}
 
 	// Upload compressed file to GCS
-	compressedObjectName := fmt.Sprintf("tracks/compressed/%s.mp3", trackID)
+	compressedObjectName := p.pathConfig.GetCompressedPath(trackID)
 	compressedFile, err := os.Open(compressedPath)
 	if err != nil {
 		return p.markProcessingFailed(ctx, trackID, fmt.Sprintf("failed to open compressed file: %v", err))
@@ -154,7 +156,7 @@ func (p *ProcessingService) downloadFile(ctx context.Context, url, filePath stri
 		// Simple extraction - in production you might want more robust parsing
 		parts := filepath.Base(url)
 		if track, err := p.nostrTrackService.GetTrack(ctx, parts[:len(parts)-len(filepath.Ext(parts))]); err == nil {
-			objectName = fmt.Sprintf("tracks/original/%s.%s", track.ID, track.Extension)
+			objectName = p.pathConfig.GetOriginalPath(track.ID, track.Extension)
 		}
 	}
 
@@ -162,10 +164,10 @@ func (p *ProcessingService) downloadFile(ctx context.Context, url, filePath stri
 		return fmt.Errorf("could not determine object name from URL")
 	}
 
-	// Download from GCS
-	reader, err := p.storageService.GetClient().Bucket(p.storageService.GetBucketName()).Object(objectName).NewReader(ctx)
+	// Download from storage
+	reader, err := p.storageService.GetObjectReader(ctx, objectName)
 	if err != nil {
-		return fmt.Errorf("failed to create GCS reader: %w", err)
+		return fmt.Errorf("failed to create storage reader: %w", err)
 	}
 	defer reader.Close()
 
@@ -274,7 +276,7 @@ func (p *ProcessingService) ProcessCompression(ctx context.Context, trackID stri
 	}
 
 	// Upload compressed file to GCS
-	compressedObjectName := fmt.Sprintf("tracks/compressed/%s_%s.%s", trackID, versionID, option.Format)
+	compressedObjectName := p.pathConfig.GetCompressedVersionPath(trackID, versionID, option.Format)
 	compressedFile, err := os.Open(compressedPath)
 	if err != nil {
 		return fmt.Errorf("failed to open compressed file: %v", err)

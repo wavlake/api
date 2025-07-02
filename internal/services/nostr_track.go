@@ -9,18 +9,21 @@ import (
 	"cloud.google.com/go/firestore"
 	"github.com/google/uuid"
 	"github.com/wavlake/api/internal/models"
+	"github.com/wavlake/api/internal/utils"
 	"google.golang.org/api/iterator"
 )
 
 type NostrTrackService struct {
 	firestoreClient *firestore.Client
-	storageService  *StorageService
+	storageService  StorageServiceInterface
+	pathConfig      *utils.StoragePathConfig
 }
 
-func NewNostrTrackService(firestoreClient *firestore.Client, storageService *StorageService) *NostrTrackService {
+func NewNostrTrackService(firestoreClient *firestore.Client, storageService StorageServiceInterface) *NostrTrackService {
 	return &NostrTrackService{
 		firestoreClient: firestoreClient,
 		storageService:  storageService,
+		pathConfig:      utils.GetStoragePathConfig(),
 	}
 }
 
@@ -29,8 +32,8 @@ func (s *NostrTrackService) CreateTrack(ctx context.Context, pubkey, firebaseUID
 	trackID := uuid.New().String()
 	now := time.Now()
 
-	// Generate storage object names
-	originalObjectName := fmt.Sprintf("tracks/original/%s.%s", trackID, extension)
+	// Generate storage object names using path configuration
+	originalObjectName := s.pathConfig.GetOriginalPath(trackID, extension)
 
 	// Generate presigned URL for upload (valid for 1 hour)
 	presignedURL, err := s.storageService.GeneratePresignedURL(ctx, originalObjectName, time.Hour)
@@ -202,14 +205,14 @@ func (s *NostrTrackService) HardDeleteTrack(ctx context.Context, trackID string)
 		return fmt.Errorf("failed to get track for deletion: %w", err)
 	}
 
-	// Delete files from storage
-	originalObjectName := fmt.Sprintf("tracks/original/%s.%s", trackID, track.Extension)
+	// Delete files from storage using path configuration
+	originalObjectName := s.pathConfig.GetOriginalPath(trackID, track.Extension)
 	if err := s.storageService.DeleteObject(ctx, originalObjectName); err != nil {
 		log.Printf("Failed to delete original file for track %s: %v", trackID, err)
 	}
 
 	if track.CompressedURL != "" {
-		compressedObjectName := fmt.Sprintf("tracks/compressed/%s.mp3", trackID)
+		compressedObjectName := s.pathConfig.GetCompressedPath(trackID)
 		if err := s.storageService.DeleteObject(ctx, compressedObjectName); err != nil {
 			log.Printf("Failed to delete compressed file for track %s: %v", trackID, err)
 		}

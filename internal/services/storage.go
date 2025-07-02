@@ -124,13 +124,23 @@ func (s *StorageService) UploadObject(ctx context.Context, objectName string, da
 }
 
 // GetObjectMetadata returns metadata for an object
-func (s *StorageService) GetObjectMetadata(ctx context.Context, objectName string) (*storage.ObjectAttrs, error) {
+func (s *StorageService) GetObjectMetadata(ctx context.Context, objectName string) (interface{}, error) {
 	obj := s.client.Bucket(s.bucketName).Object(objectName)
 	attrs, err := obj.Attrs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get object metadata: %w", err)
 	}
 	return attrs, nil
+}
+
+// GetObjectReader returns a reader for an object
+func (s *StorageService) GetObjectReader(ctx context.Context, objectName string) (io.ReadCloser, error) {
+	obj := s.client.Bucket(s.bucketName).Object(objectName)
+	reader, err := obj.NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create object reader: %w", err)
+	}
+	return reader, nil
 }
 
 // signBytes uses the Service Account Credentials API to sign bytes with the service account

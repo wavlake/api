@@ -33,6 +33,14 @@ func getEnvAsInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
+// getEnvOrDefault returns an environment variable value or a default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -46,11 +54,22 @@ func main() {
 		projectID = "default-project" // Or handle this appropriately
 	}
 
-	bucketName := os.Getenv("GCS_BUCKET_NAME")
-	if bucketName == "" {
-		log.Println("Warning: GCS_BUCKET_NAME environment variable not set")
-		// For local development, you might want to set a default or exit gracefully
-		bucketName = "default-bucket" // Or handle this appropriately
+	// Storage configuration - support both GCS and S3
+	storageProvider := getEnvOrDefault("STORAGE_PROVIDER", "gcs") // default to GCS for backward compatibility
+	bucketName := ""
+
+	if storageProvider == "s3" {
+		bucketName = os.Getenv("AWS_S3_BUCKET_NAME")
+		if bucketName == "" {
+			log.Println("Warning: AWS_S3_BUCKET_NAME environment variable not set")
+			bucketName = "default-bucket"
+		}
+	} else {
+		bucketName = os.Getenv("GCS_BUCKET_NAME")
+		if bucketName == "" {
+			log.Println("Warning: GCS_BUCKET_NAME environment variable not set")
+			bucketName = "default-bucket"
+		}
 	}
 
 	tempDir := os.Getenv("TEMP_DIR")
@@ -120,9 +139,23 @@ func main() {
 
 	// Initialize services
 	userService := services.NewUserService(firestoreClient)
-	storageService, err := services.NewStorageService(ctx, bucketName)
-	if err != nil {
-		log.Fatalf("Failed to initialize storage service: %v", err)
+
+	// Initialize storage service based on provider
+	var storageService services.StorageServiceInterface
+	if storageProvider == "s3" {
+		log.Printf("Initializing S3 storage service with bucket: %s", bucketName)
+		s3Service, err := services.NewS3StorageService(ctx, bucketName)
+		if err != nil {
+			log.Fatalf("Failed to initialize S3 storage service: %v", err)
+		}
+		storageService = s3Service
+	} else {
+		log.Printf("Initializing GCS storage service with bucket: %s", bucketName)
+		gcsService, err := services.NewStorageService(ctx, bucketName)
+		if err != nil {
+			log.Fatalf("Failed to initialize GCS storage service: %v", err)
+		}
+		storageService = gcsService
 	}
 	defer storageService.Close()
 

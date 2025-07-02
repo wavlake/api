@@ -18,8 +18,13 @@
 go.work
 go.work.sum
 
-# env file
+# Environment files with secrets
 .env
+.env.local
+.env.production
+.env.staging
+.env.s3
+*.env
 
 # IDE specific files
 .idea/

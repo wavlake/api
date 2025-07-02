@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/wavlake/api/internal/models"
 )
@@ -24,5 +26,19 @@ type PostgresServiceInterface interface {
 	GetTracksByAlbum(ctx context.Context, albumID string) ([]models.LegacyTrack, error)
 }
 
-// Ensure UserService implements the interface
+// StorageServiceInterface defines the interface for storage operations
+type StorageServiceInterface interface {
+	GeneratePresignedURL(ctx context.Context, objectName string, expiration time.Duration) (string, error)
+	GetPublicURL(objectName string) string
+	UploadObject(ctx context.Context, objectName string, data io.Reader, contentType string) error
+	CopyObject(ctx context.Context, srcObject, dstObject string) error
+	DeleteObject(ctx context.Context, objectName string) error
+	GetObjectMetadata(ctx context.Context, objectName string) (interface{}, error)
+	GetObjectReader(ctx context.Context, objectName string) (io.ReadCloser, error)
+	GetBucketName() string
+	Close() error
+}
+
+// Ensure services implement their interfaces
 var _ UserServiceInterface = (*UserService)(nil)
+var _ StorageServiceInterface = (*StorageService)(nil)
