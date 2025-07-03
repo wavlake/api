@@ -11,7 +11,9 @@ type StoragePathConfig struct {
 	UseLegacyPaths   bool
 }
 
-// GetStoragePathConfig returns path configuration for GCS
+// GetStoragePathConfig returns a fixed path configuration for GCS storage.
+// The paths are set to standard prefixes: 'tracks/original' and 'tracks/compressed'.
+
 func GetStoragePathConfig() *StoragePathConfig {
 	config := &StoragePathConfig{
 		OriginalPrefix:   "tracks/original",
