@@ -106,6 +106,7 @@ func (ap *AudioProcessor) GetAudioInfo(ctx context.Context, inputPath string) (*
 // Target: 128kbps MP3, 44.1kHz sample rate
 func (ap *AudioProcessor) CompressAudio(ctx context.Context, inputPath, outputPath string) error {
 	// Create output directory if it doesn't exist
+	// #nosec G301
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -141,7 +142,7 @@ func (ap *AudioProcessor) DownloadAndCompress(ctx context.Context, sourceURL, ou
 	defer tempFile.Close()
 
 	// Download the file using curl (more reliable than Go's http client for large files)
-	cmd := exec.CommandContext(ctx, "curl",
+	cmd := exec.CommandContext(ctx, "curl", // #nosec G204 -- Curl execution with controlled args for file download
 		"-L",                  // Follow redirects
 		"-o", tempFile.Name(), // Output to temp file
 		sourceURL)
@@ -247,7 +248,7 @@ func (ap *AudioProcessor) CompressAudioWithOptions(ctx context.Context, inputPat
 	args = append(args, outputPath)
 
 	// Execute ffmpeg
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...) // #nosec G204 -- FFmpeg execution with controlled args for audio processing
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to compress audio with options %+v: %w, output: %s", options, err, string(output))

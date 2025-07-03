@@ -112,7 +112,7 @@ func (s *StorageService) UploadObject(ctx context.Context, objectName string, da
 	writer.ContentType = contentType
 
 	if _, err := io.Copy(writer, data); err != nil {
-		writer.Close()
+		_ = writer.Close() // #nosec G104 -- Error in cleanup, primary error is more important
 		return fmt.Errorf("failed to upload object: %w", err)
 	}
 

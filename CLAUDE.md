@@ -190,47 +190,40 @@ go test -v ./internal/handlers -run TestAuthHandlers
 ### Mock Generation
 Mocks are manually created in `internal/mocks/` following the interface patterns. When adding new service methods, update corresponding mocks.
 
-## S3 Migration Documentation
+## Storage Architecture
 
-The API includes comprehensive S3 migration capability to replace Google Cloud Storage with AWS S3 while maintaining legacy compatibility with the catalog API.
+The API uses Google Cloud Storage (GCS) for all file storage needs with a clean path structure designed for audio track management.
 
-### Key Migration Files
-- **`S3_MIGRATION.md`**: Complete migration documentation and architecture
-- **`infrastructure-setup.md`**: Infrastructure requirements and setup
-- **`setup-aws-cli.sh`**: AWS CLI installation and configuration script
-- **`test-infrastructure.sh`**: End-to-end infrastructure testing script
-- **`MIGRATION_ANALYSIS.md`**: Detailed migration planning and implementation progress
-
-### S3 Migration Configuration
+### Storage Configuration
 ```bash
-# Enable S3 storage (replaces GCS)
-STORAGE_PROVIDER=s3
-
-# AWS Configuration
-AWS_REGION=us-east-2
-AWS_S3_BUCKET_NAME=wavlake-audio
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-
-# Legacy path compatibility (matches catalog API)
-AWS_S3_RAW_PREFIX=raw      # Original uploads: raw/{trackId}.{ext}
-AWS_S3_TRACK_PREFIX=track  # Processed files: track/{trackId}.mp3
-
-# CDN integration
-AWS_CDN_DOMAIN=d1d8hh7a10hq2y.cloudfront.net
+# GCS Configuration
+export GOOGLE_CLOUD_PROJECT=your-project-id
+export GCS_BUCKET_NAME=wavlake-audio
+export TEMP_DIR=/tmp
 ```
 
-### Storage Service Architecture
-- **Interface**: `StorageServiceInterface` supports both GCS and S3
-- **Implementation**: `S3StorageService` provides full S3 compatibility
-- **Path Configuration**: `storage_paths.go` handles legacy/modern path structures
-- **Processing**: Enhanced FFmpeg-based audio processing with multiple format support
+### Path Structure
+```
+gs://wavlake-audio/
+├── tracks/
+│   ├── original/        # Original uploaded files
+│   │   └── {trackId}.{ext}
+│   └── compressed/      # Compressed versions
+│       ├── {trackId}.mp3
+│       └── {trackId}_{versionId}.{format}
+```
 
-### Migration Benefits
-- **100% Backward Compatibility**: Drop-in replacement for AWS Lambda compressor
-- **Enhanced Processing**: Multiple formats (MP3, AAC, OGG), quality levels, compression versions
-- **Unified Storage**: Single S3 bucket for legacy and new systems
-- **Cost Optimization**: Eliminates GCS costs and Lambda function overhead
+### Storage Service Features
+- **Interface**: `StorageServiceInterface` for clean abstraction
+- **Implementation**: Native GCS integration with presigned URLs
+- **Path Configuration**: Consistent path structure in `storage_paths.go`
+- **Processing**: FFmpeg-based audio processing with multiple format support
+
+### Audio Processing
+- **Default Compression**: Automatic 128kbps MP3 for every upload
+- **Custom Formats**: MP3, AAC, OGG with configurable quality
+- **Multiple Versions**: Support for different quality levels per track
+- **Async Processing**: Background processing with status tracking
 
 ## Legacy API Endpoints
 

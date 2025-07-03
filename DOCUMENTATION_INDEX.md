@@ -5,42 +5,31 @@ This directory contains comprehensive documentation for the Wavlake API. Start h
 ## 📋 **Quick Start**
 
 1. **[CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md)** - How the API works today (start here)
-2. **[README.md](README.md)** - Basic setup and development guide
+2. **[README.md](README.md)** - Basic setup and development guide  
 3. **[CLAUDE.md](CLAUDE.md)** - AI assistant context and development commands
 
 ## 🏗️ **Architecture Documentation**
 
 ### Current Production System
-- **[CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md)** - Complete current architecture (S3-based)
-- **[S3_IMPLEMENTATION.md](S3_IMPLEMENTATION.md)** - Technical details of S3 implementation
+- **[CURRENT_ARCHITECTURE.md](CURRENT_ARCHITECTURE.md)** - Complete current architecture (GCS-based)
 
 ### API Features
 - **[README_NOSTR_TRACKS.md](README_NOSTR_TRACKS.md)** - Nostr track upload API documentation
 - **[LEGACY_API_TYPES.md](LEGACY_API_TYPES.md)** - Legacy PostgreSQL API types and interfaces
 
-## 🚀 **Future Plans**
-
-- **[GCS_MIGRATION_PLAN.md](GCS_MIGRATION_PLAN.md)** - Detailed plan for future S3→GCS migration
-
 ## 📁 **Document Organization**
 
 ### **Current State** (How things work today)
 ```
-CURRENT_ARCHITECTURE.md          ← Complete current architecture document
-└── S3_IMPLEMENTATION.md         ← Technical S3 implementation details
+CURRENT_ARCHITECTURE.md          ← Complete current architecture document (GCS)
 ```
 
 ### **Development & Usage**
 ```
 README.md                        ← Basic setup and usage
-├── README_NOSTR_TRACKS.md       ← API usage examples
-├── LEGACY_API_TYPES.md          ← Type definitions
+├── README_NOSTR_TRACKS.md       ← Track upload API examples
+├── LEGACY_API_TYPES.md          ← TypeScript type definitions
 └── CLAUDE.md                    ← Development assistant configuration
-```
-
-### **Future Planning**
-```
-GCS_MIGRATION_PLAN.md            ← Future migration from S3 back to GCS
 ```
 
 ## 🎯 **What to Read Based on Your Goal**
@@ -54,42 +43,34 @@ GCS_MIGRATION_PLAN.md            ← Future migration from S3 back to GCS
 ### **I want to use the track upload API**
 → Read **[README_NOSTR_TRACKS.md](README_NOSTR_TRACKS.md)**
 
-### **I want to understand the S3 implementation**
-→ Read **[S3_IMPLEMENTATION.md](S3_IMPLEMENTATION.md)**
-
-### **I want to plan the future GCS migration**
-→ Read **[GCS_MIGRATION_PLAN.md](GCS_MIGRATION_PLAN.md)**
+### **I want to integrate with legacy data**
+→ Read **[LEGACY_API_TYPES.md](LEGACY_API_TYPES.md)**
 
 ### **I want to work with Claude Code**
 → Read **[CLAUDE.md](CLAUDE.md)**
 
-## 📊 **Architecture Evolution**
+## 📊 **System Overview**
 
-```mermaid
-timeline
-    title Storage Architecture Evolution
-    
-    2024 Q4 : Original GCS Implementation
-            : Cloud Storage + Cloud Functions
-            : Modern path structure
-    
-    2025 Q2 : S3 Migration (Current)
-            : AWS S3 + Lambda compatibility
-            : Legacy path structure (raw/, track/)
-            : Enhanced processing in Go
-    
-    2025 Q4 : Future GCS Migration (Planned)
-            : Return to GCS with enhancements
-            : Modern path structure + multi-format
-            : Advanced audio features
-```
+The Wavlake API provides:
+
+- **Track Uploads**: NIP-98 authenticated uploads to Google Cloud Storage
+- **Audio Processing**: FFmpeg-based compression with multiple format support
+- **Legacy Data Access**: Read-only PostgreSQL endpoints for catalog API data
+- **Dual Authentication**: Firebase JWT + Nostr NIP-98 signature support
+- **Content Moderation**: Pubkey-based track ownership and removal capabilities
+
+### Architecture Highlights
+- **Storage**: Google Cloud Storage with `tracks/original/` and `tracks/compressed/` structure
+- **Processing**: Cloud Functions trigger → API webhook → FFmpeg compression
+- **Database**: Firestore (primary) + PostgreSQL (legacy read-only)
+- **Deployment**: Cloud Run with VPC connector for secure database access
 
 ## ✅ **Documentation Quality Standards**
 
 All documentation in this repository follows these standards:
 
 - **Current**: Reflects production reality
-- **Complete**: Covers setup, usage, and troubleshooting
+- **Complete**: Covers setup, usage, and troubleshooting  
 - **Clear**: No ambiguity about current vs future state
 - **Organized**: Logical structure with clear navigation
 - **Maintained**: Updated with code changes
@@ -97,11 +78,11 @@ All documentation in this repository follows these standards:
 ## 🔄 **Document Lifecycle**
 
 - **Current State Docs**: Updated immediately when code changes
-- **Implementation Docs**: Created during development, finalized at completion
-- **Future Planning Docs**: Updated as plans evolve, archived when implemented
+- **API Documentation**: Updated when endpoints change
+- **Development Docs**: Updated when development practices change
 
 ---
 
 **Last Updated**: July 2025  
-**Total Documents**: 7 core documents  
-**Status**: All current-state documentation reflects production reality
+**Total Documents**: 5 core documents  
+**Status**: All documentation reflects current GCS-based production system

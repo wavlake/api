@@ -26,10 +26,10 @@ steps:
       '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      # Environment variables - supports both GCS and S3
-      '--set-env-vars', 'COMMIT_SHA=${_IMAGE_TAG},GOOGLE_CLOUD_PROJECT=$PROJECT_ID,STORAGE_PROVIDER=${_STORAGE_PROVIDER},GCS_BUCKET_NAME=${_GCS_BUCKET},AWS_REGION=us-east-2,AWS_S3_BUCKET_NAME=${_S3_BUCKET},AWS_S3_RAW_PREFIX=raw,AWS_S3_TRACK_PREFIX=track,AWS_S3_IMAGE_PREFIX=image,TEMP_DIR=/tmp',
-      # Secrets - includes both existing and new AWS secrets
-      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest,AWS_ACCESS_KEY_ID=aws-access-key-id:latest,AWS_SECRET_ACCESS_KEY=${_AWS_SECRET}:latest',
+      # Environment variables - GCS only
+      '--set-env-vars', 'COMMIT_SHA=${_IMAGE_TAG},GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GCS_BUCKET_NAME=${_GCS_BUCKET},TEMP_DIR=/tmp',
+      # Secrets - PostgreSQL and webhook only
+      '--update-secrets', 'WEBHOOK_SECRET=webhook-secret:latest,PROD_POSTGRES_CONNECTION_STRING_RO=PROD_POSTGRES_CONNECTION_STRING_RO:latest',
       '--vpc-connector', '${_VPC_CONNECTOR}',
       '--service-account', '${_SERVICE_ACCOUNT}',
       '--min-instances', '${_MIN_INSTANCES}',
@@ -53,7 +53,7 @@ steps:
 
 # Substitution variables with defaults
 substitutions:
-  # Existing configuration (unchanged)
+  # Cloud Run configuration
   _REGION: us-central1
   _REPOSITORY: api-repo
   _SERVICE_ACCOUNT: api-service@wavlake-alpha.iam.gserviceaccount.com
@@ -66,15 +66,8 @@ substitutions:
   _TIMEOUT: '300s'
   _CONCURRENCY: '80'
   
-  # Storage configuration - choose storage provider
-  _STORAGE_PROVIDER: gcs  # Change to 's3' for S3 migration
-  
-  # GCS configuration (existing)
+  # GCS configuration
   _GCS_BUCKET: wavlake-audio
-  
-  # S3 configuration (new)
-  _S3_BUCKET: staging-wavlake-media  # or wavlake-media for production
-  _AWS_SECRET: AWS_S3_MEDIA_SECRET_STAGING  # or AWS_S3_MEDIA_SECRET_PROD for production
 
 # Build configuration options
 options:
