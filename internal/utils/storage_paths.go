@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"os"
 )
 
 // StoragePathConfig holds path configuration for different storage providers
@@ -12,22 +11,12 @@ type StoragePathConfig struct {
 	UseLegacyPaths   bool
 }
 
-// GetStoragePathConfig returns path configuration based on storage provider
+// GetStoragePathConfig returns path configuration for GCS
 func GetStoragePathConfig() *StoragePathConfig {
-	storageProvider := getEnvOrDefault("STORAGE_PROVIDER", "gcs")
-
-	config := &StoragePathConfig{}
-
-	if storageProvider == "s3" {
-		// For S3, use legacy catalog API path structure by default for compatibility
-		config.OriginalPrefix = getEnvOrDefault("AWS_S3_RAW_PREFIX", "raw")
-		config.CompressedPrefix = getEnvOrDefault("AWS_S3_TRACK_PREFIX", "track")
-		config.UseLegacyPaths = true
-	} else {
-		// Use current path structure for GCS
-		config.OriginalPrefix = "tracks/original"
-		config.CompressedPrefix = "tracks/compressed"
-		config.UseLegacyPaths = false
+	config := &StoragePathConfig{
+		OriginalPrefix:   "tracks/original",
+		CompressedPrefix: "tracks/compressed",
+		UseLegacyPaths:   false,
 	}
 
 	return config
@@ -86,12 +75,4 @@ func (c *StoragePathConfig) GetTrackIDFromPath(objectPath string) string {
 	}
 
 	return filename
-}
-
-// getEnvOrDefault returns an environment variable value or a default value
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
