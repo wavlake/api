@@ -6,17 +6,20 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"firebase.google.com/go/v4/auth"
 	"github.com/wavlake/api/internal/models"
 	"google.golang.org/api/iterator"
 )
 
 type UserService struct {
 	firestoreClient *firestore.Client
+	firebaseAuth    *auth.Client
 }
 
-func NewUserService(firestoreClient *firestore.Client) *UserService {
+func NewUserService(firestoreClient *firestore.Client, firebaseAuth *auth.Client) *UserService {
 	return &UserService{
 		firestoreClient: firestoreClient,
+		firebaseAuth:    firebaseAuth,
 	}
 }
 
@@ -236,4 +239,14 @@ func removeString(slice []string, item string) []string {
 		}
 	}
 	return result
+}
+
+// GetUserEmail retrieves the email address for a Firebase user
+func (s *UserService) GetUserEmail(ctx context.Context, firebaseUID string) (string, error) {
+	user, err := s.firebaseAuth.GetUser(ctx, firebaseUID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user from Firebase Auth: %w", err)
+	}
+
+	return user.Email, nil
 }

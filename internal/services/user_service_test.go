@@ -19,6 +19,7 @@ func (suite *UserServiceTestSuite) SetupTest() {
 	// In integration tests, we would use a real or emulated Firestore
 	suite.service = &UserService{
 		firestoreClient: nil, // We'll mock the database operations
+		firebaseAuth:    nil, // We'll mock the Firebase Auth operations
 	}
 }
 

@@ -138,7 +138,7 @@ func main() {
 	}
 
 	// Initialize services
-	userService := services.NewUserService(firestoreClient)
+	userService := services.NewUserService(firestoreClient, firebaseAuth)
 
 	// Initialize storage service based on provider
 	var storageService services.StorageServiceInterface

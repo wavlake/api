@@ -14,6 +14,7 @@ type UserServiceInterface interface {
 	UnlinkPubkeyFromUser(ctx context.Context, pubkey, firebaseUID string) error
 	GetLinkedPubkeys(ctx context.Context, firebaseUID string) ([]models.NostrAuth, error)
 	GetFirebaseUIDByPubkey(ctx context.Context, pubkey string) (string, error)
+	GetUserEmail(ctx context.Context, firebaseUID string) (string, error)
 }
 
 // PostgresServiceInterface defines the interface for PostgreSQL operations

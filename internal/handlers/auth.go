@@ -208,6 +208,7 @@ type CheckPubkeyLinkResponse struct {
 	IsLinked    bool   `json:"is_linked"`
 	FirebaseUID string `json:"firebase_uid,omitempty"`
 	PubKey      string `json:"pubkey"`
+	Email       string `json:"email,omitempty"`
 }
 
 // CheckPubkeyLink handles POST /v1/auth/check-pubkey-link
@@ -241,17 +242,26 @@ func (h *AuthHandlers) CheckPubkeyLink(c *gin.Context) {
 			IsLinked:    false,
 			FirebaseUID: "",
 			PubKey:      req.PubKey,
+			Email:       "",
 		}
 		c.JSON(http.StatusOK, response)
 		return
 	}
 
-	// Pubkey is linked
+	// Pubkey is linked - get the user's email address
+	email, err := h.userService.GetUserEmail(c.Request.Context(), firebaseUID)
+	if err != nil {
+		// Log the error but continue without email
+		log.Printf("Failed to get email for Firebase UID %s: %v", firebaseUID, err)
+		email = ""
+	}
+
 	response := CheckPubkeyLinkResponse{
 		Success:     true,
 		IsLinked:    true,
 		FirebaseUID: firebaseUID,
 		PubKey:      req.PubKey,
+		Email:       email,
 	}
 
 	c.JSON(http.StatusOK, response)

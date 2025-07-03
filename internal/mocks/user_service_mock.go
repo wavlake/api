@@ -34,3 +34,8 @@ func (m *MockUserService) GetFirebaseUIDByPubkey(ctx context.Context, pubkey str
 	args := m.Called(ctx, pubkey)
 	return args.String(0), args.Error(1)
 }
+
+func (m *MockUserService) GetUserEmail(ctx context.Context, firebaseUID string) (string, error) {
+	args := m.Called(ctx, firebaseUID)
+	return args.String(0), args.Error(1)
+}

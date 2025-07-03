@@ -288,6 +288,7 @@ func (suite *AuthHandlerTestSuite) TestEndpoints_MissingAuth() {
 // Test CheckPubkeyLink endpoint
 func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_Linked() {
 	suite.userService.On("GetFirebaseUIDByPubkey", mock.Anything, "test-pubkey-123").Return("firebase-uid-456", nil)
+	suite.userService.On("GetUserEmail", mock.Anything, "firebase-uid-456").Return("user@example.com", nil)
 
 	requestBody := CheckPubkeyLinkRequest{
 		PubKey: "test-pubkey-123",
@@ -316,6 +317,7 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_Linked() {
 	assert.True(suite.T(), response.IsLinked)
 	assert.Equal(suite.T(), "firebase-uid-456", response.FirebaseUID)
 	assert.Equal(suite.T(), "test-pubkey-123", response.PubKey)
+	assert.Equal(suite.T(), "user@example.com", response.Email)
 }
 
 func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_NotLinked() {
@@ -345,6 +347,7 @@ func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_Success_NotLinked() {
 	assert.False(suite.T(), response.IsLinked)
 	assert.Equal(suite.T(), "", response.FirebaseUID)
 	assert.Equal(suite.T(), "unlinked-pubkey", response.PubKey)
+	assert.Equal(suite.T(), "", response.Email)
 }
 
 func (suite *AuthHandlerTestSuite) TestCheckPubkeyLink_InvalidRequest() {
