@@ -178,6 +178,8 @@ func main() {
 		"Authorization",
 		"X-Nostr-Authorization",
 		"X-Requested-With",
+		"x-firebase-token",
+		"X-Firebase-Token",
 	}
 	config.AllowCredentials = true
 	router.Use(cors.New(config))

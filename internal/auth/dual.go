@@ -31,6 +31,10 @@ func (m *DualAuthMiddleware) Middleware() gin.HandlerFunc {
 		// 1. Validate Firebase token
 		firebaseToken := extractBearerToken(c.GetHeader("Authorization"))
 		if firebaseToken == "" {
+			// Also check X-Firebase-Token header
+			firebaseToken = c.GetHeader("X-Firebase-Token")
+		}
+		if firebaseToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing Firebase authorization token"})
 			c.Abort()
 			return
@@ -65,7 +69,14 @@ func (m *DualAuthMiddleware) validateNIP98(r *http.Request) (*nostr.Event, error
 	// Check for Nostr authorization header
 	nostrHeader := r.Header.Get("X-Nostr-Authorization")
 	if nostrHeader == "" {
-		return nil, fmt.Errorf("missing X-Nostr-Authorization header")
+		// Also check Authorization header for Nostr scheme
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Nostr ") {
+			nostrHeader = authHeader
+		}
+	}
+	if nostrHeader == "" {
+		return nil, fmt.Errorf("missing Nostr authorization header")
 	}
 
 	if !strings.HasPrefix(nostrHeader, "Nostr ") {
