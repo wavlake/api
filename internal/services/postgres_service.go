@@ -27,7 +27,7 @@ func (p *PostgresService) GetUserByFirebaseUID(ctx context.Context, firebaseUID 
 		       COALESCE(msat_balance, 0) as msat_balance, COALESCE(amp_msat, 1000) as amp_msat,
 		       COALESCE(artwork_url, '') as artwork_url, COALESCE(profile_url, '') as profile_url,
 		       COALESCE(is_locked, false) as is_locked, created_at, updated_at
-		FROM "user" 
+		FROM user 
 		WHERE id = $1 AND NOT COALESCE(is_locked, false)
 	`
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,16 +32,21 @@ type UserMetadataResponse struct {
 // Returns all user metadata from the legacy PostgreSQL system
 func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 	firebaseUID := c.GetString("firebase_uid")
+	pubkey := c.GetString("pubkey")
+	log.Printf("Legacy Debug - pubkey: %s, firebase_uid: %s", pubkey, firebaseUID)
+
 	if firebaseUID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to find an associated Firebase UID"})
 		return
 	}
 
 	ctx := c.Request.Context()
 
 	// Get user data
+	log.Printf("Legacy Debug - Querying PostgreSQL for Firebase UID: %s", firebaseUID)
 	user, err := h.postgresService.GetUserByFirebaseUID(ctx, firebaseUID)
 	if err != nil {
+		log.Printf("Legacy Debug - GetUserByFirebaseUID error: %v", err)
 		// Return empty response for user not found
 		response := UserMetadataResponse{
 			User:    nil,
@@ -55,20 +61,26 @@ func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 	// Get associated data (continue even if some fail)
 	artists, err := h.postgresService.GetUserArtists(ctx, firebaseUID)
 	if err != nil {
-		// Log error but continue
+		log.Printf("Legacy Debug - GetUserArtists error: %v", err)
 		artists = []models.LegacyArtist{}
+	} else {
+		log.Printf("Legacy Debug - Found %d artists", len(artists))
 	}
 
 	albums, err := h.postgresService.GetUserAlbums(ctx, firebaseUID)
 	if err != nil {
-		// Log error but continue
+		log.Printf("Legacy Debug - GetUserAlbums error: %v", err)
 		albums = []models.LegacyAlbum{}
+	} else {
+		log.Printf("Legacy Debug - Found %d albums", len(albums))
 	}
 
 	tracks, err := h.postgresService.GetUserTracks(ctx, firebaseUID)
 	if err != nil {
-		// Log error but continue
+		log.Printf("Legacy Debug - GetUserTracks error: %v", err)
 		tracks = []models.LegacyTrack{}
+	} else {
+		log.Printf("Legacy Debug - Found %d tracks", len(tracks))
 	}
 
 	response := UserMetadataResponse{
@@ -86,7 +98,7 @@ func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 func (h *LegacyHandler) GetUserTracks(c *gin.Context) {
 	firebaseUID := c.GetString("firebase_uid")
 	if firebaseUID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to find an associated Firebase UID"})
 		return
 	}
 
@@ -106,7 +118,7 @@ func (h *LegacyHandler) GetUserTracks(c *gin.Context) {
 func (h *LegacyHandler) GetUserArtists(c *gin.Context) {
 	firebaseUID := c.GetString("firebase_uid")
 	if firebaseUID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to find an associated Firebase UID"})
 		return
 	}
 
@@ -126,7 +138,7 @@ func (h *LegacyHandler) GetUserArtists(c *gin.Context) {
 func (h *LegacyHandler) GetUserAlbums(c *gin.Context) {
 	firebaseUID := c.GetString("firebase_uid")
 	if firebaseUID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Firebase authentication required"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to find an associated Firebase UID"})
 		return
 	}
 
