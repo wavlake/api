@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	nostr "github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -16,19 +17,21 @@ type NostrEventTestSuite struct {
 
 func (suite *NostrEventTestSuite) TestEventSerialization() {
 	event := Event{
-		ID:        "test-id",
-		PubKey:    "test-pubkey",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags: [][]string{
-			{"u", "https://api.example.com/test"},
-			{"method", "GET"},
+		Event: &nostr.Event{
+			ID:        "test-id",
+			PubKey:    "test-pubkey",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags: nostr.Tags{
+				{"u", "https://api.example.com/test"},
+				{"method", "GET"},
+			},
+			Content: "",
+			Sig:     "test-signature",
 		},
-		Content: "",
-		Sig:     "test-signature",
 	}
 
-	serialized := event.serialize()
+	serialized := event.Serialize()
 
 	// Verify the serialization format
 	var parsed []interface{}
@@ -51,16 +54,18 @@ func (suite *NostrEventTestSuite) TestEventSerialization() {
 
 func (suite *NostrEventTestSuite) TestEventVerify_InvalidID() {
 	event := Event{
-		ID:        "invalid-id",
-		PubKey:    "test-pubkey",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags: [][]string{
-			{"u", "https://api.example.com/test"},
-			{"method", "GET"},
+		Event: &nostr.Event{
+			ID:        "invalid-id",
+			PubKey:    "test-pubkey",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags: nostr.Tags{
+				{"u", "https://api.example.com/test"},
+				{"method", "GET"},
+			},
+			Content: "",
+			Sig:     "test-signature",
 		},
-		Content: "",
-		Sig:     "test-signature",
 	}
 
 	// The ID doesn't match the hash, so verification should fail
@@ -71,19 +76,21 @@ func (suite *NostrEventTestSuite) TestEventVerify_InvalidID() {
 func (suite *NostrEventTestSuite) TestEventVerify_InvalidSignature() {
 	// Create an event with correct ID but invalid signature
 	event := Event{
-		PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags: [][]string{
-			{"u", "https://api.snort.social/api/v1/n5sp/list"},
-			{"method", "GET"},
+		Event: &nostr.Event{
+			PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags: nostr.Tags{
+				{"u", "https://api.snort.social/api/v1/n5sp/list"},
+				{"method", "GET"},
+			},
+			Content: "",
+			Sig:     "invalid-signature",
 		},
-		Content: "",
-		Sig:     "invalid-signature",
 	}
 
 	// Calculate the correct ID
-	serialized := event.serialize()
+	serialized := event.Serialize()
 	hash := sha256.Sum256([]byte(serialized))
 	event.ID = hex.EncodeToString(hash[:])
 
@@ -95,20 +102,22 @@ func (suite *NostrEventTestSuite) TestEventVerify_InvalidSignature() {
 func (suite *NostrEventTestSuite) TestEventVerify_ValidExample() {
 	// This is the example from NIP-98
 	event := Event{
-		ID:        "fe964e758903360f28d8424d092da8494ed207cba823110be3a57dfe4b578734",
-		PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
-		Content:   "",
-		Kind:      27235,
-		CreatedAt: 1682327852,
-		Tags: [][]string{
-			{"u", "https://api.snort.social/api/v1/n5sp/list"},
-			{"method", "GET"},
+		Event: &nostr.Event{
+			ID:        "fe964e758903360f28d8424d092da8494ed207cba823110be3a57dfe4b578734",
+			PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
+			Content:   "",
+			Kind:      27235,
+			CreatedAt: nostr.Timestamp(1682327852),
+			Tags: nostr.Tags{
+				{"u", "https://api.snort.social/api/v1/n5sp/list"},
+				{"method", "GET"},
+			},
+			Sig: "5ed9d8ec958bc854f997bdc24ac337d005af372324747efe4a00e24f4c30437ff4dd8308684bed467d9d6be3e5a517bb43b1732cc7d33949a3aaf86705c22184",
 		},
-		Sig: "5ed9d8ec958bc854f997bdc24ac337d005af372324747efe4a00e24f4c30437ff4dd8308684bed467d9d6be3e5a517bb43b1732cc7d33949a3aaf86705c22184",
 	}
 
 	// Test that we can serialize the event (structure test)
-	serialized := event.serialize()
+	serialized := event.Serialize()
 	assert.NotEmpty(suite.T(), serialized)
 
 	// Test basic verification logic (will fail due to signature, but tests the flow)
@@ -122,13 +131,15 @@ func (suite *NostrEventTestSuite) TestEventVerify_ValidExample() {
 
 func (suite *NostrEventTestSuite) TestEventVerify_InvalidPubKey() {
 	event := Event{
-		ID:        "test-id",
-		PubKey:    "invalid-pubkey", // Not hex or wrong length
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags:      [][]string{},
-		Content:   "",
-		Sig:       "test-signature",
+		Event: &nostr.Event{
+			ID:        "test-id",
+			PubKey:    "invalid-pubkey", // Not hex or wrong length
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags:      nostr.Tags{},
+			Content:   "",
+			Sig:       "test-signature",
+		},
 	}
 
 	result := event.Verify()
@@ -137,13 +148,15 @@ func (suite *NostrEventTestSuite) TestEventVerify_InvalidPubKey() {
 
 func (suite *NostrEventTestSuite) TestEventVerify_InvalidSignatureFormat() {
 	event := Event{
-		ID:        "test-id",
-		PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags:      [][]string{},
-		Content:   "",
-		Sig:       "not-hex-signature", // Invalid hex
+		Event: &nostr.Event{
+			ID:        "test-id",
+			PubKey:    "63fe6318dc58583cfe16810f86dd09e18bfd76aabc24a0081ce2856f330504ed",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags:      nostr.Tags{},
+			Content:   "",
+			Sig:       "not-hex-signature", // Invalid hex
+		},
 	}
 
 	result := event.Verify()
@@ -152,39 +165,43 @@ func (suite *NostrEventTestSuite) TestEventVerify_InvalidSignatureFormat() {
 
 func (suite *NostrEventTestSuite) TestSerializeConsistency() {
 	event := Event{
-		PubKey:    "test-pubkey",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags: [][]string{
-			{"u", "https://api.example.com/test"},
-			{"method", "POST"},
-			{"payload", "abcd1234"},
+		Event: &nostr.Event{
+			PubKey:    "test-pubkey",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags: nostr.Tags{
+				{"u", "https://api.example.com/test"},
+				{"method", "POST"},
+				{"payload", "abcd1234"},
+			},
+			Content: "test content",
 		},
-		Content: "test content",
 	}
 
 	// Serialize multiple times to ensure consistency
-	serialized1 := event.serialize()
-	serialized2 := event.serialize()
+	serialized1 := event.Serialize()
+	serialized2 := event.Serialize()
 	assert.Equal(suite.T(), serialized1, serialized2)
 
 	// Test that different events produce different serializations
 	event2 := event
 	event2.Content = "different content"
-	serialized3 := event2.serialize()
+	serialized3 := event2.Serialize()
 	assert.NotEqual(suite.T(), serialized1, serialized3)
 }
 
 func (suite *NostrEventTestSuite) TestEmptyTagsAndContent() {
 	event := Event{
-		PubKey:    "test-pubkey",
-		CreatedAt: 1682327852,
-		Kind:      27235,
-		Tags:      [][]string{},
-		Content:   "",
+		Event: &nostr.Event{
+			PubKey:    "test-pubkey",
+			CreatedAt: nostr.Timestamp(1682327852),
+			Kind:      27235,
+			Tags:      nostr.Tags{},
+			Content:   "",
+		},
 	}
 
-	serialized := event.serialize()
+	serialized := event.Serialize()
 
 	var parsed []interface{}
 	err := json.Unmarshal([]byte(serialized), &parsed)
