@@ -168,7 +168,8 @@ func main() {
 		"http://localhost:8083",          // Another dev port
 		"https://wavlake.com",            // Production
 		"https://*.wavlake.com",          // Subdomains
-		"https://web-wavlake.vercel.app", // Vercel preview deployments
+		"https://web-wavlake.vercel.app", // Vercel main deployment
+		"https://*.vercel.app",           // All Vercel preview deployments
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{
