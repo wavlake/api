@@ -46,8 +46,8 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 	compressedPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_compressed.mp3", trackID))
 
 	defer func() {
-		os.Remove(originalPath)
-		os.Remove(compressedPath)
+		_ = os.Remove(originalPath)   // #nosec G104 -- Cleanup operation, errors not critical
+		_ = os.Remove(compressedPath) // #nosec G104 -- Cleanup operation, errors not critical
 	}()
 
 	// Download original file from GCS
@@ -74,7 +74,7 @@ func (p *ProcessingService) ProcessTrack(ctx context.Context, trackID string) er
 
 	// Upload compressed file to GCS
 	compressedObjectName := p.pathConfig.GetCompressedPath(trackID)
-	compressedFile, err := os.Open(compressedPath)
+	compressedFile, err := os.Open(compressedPath) // #nosec G304 -- Opening controlled temp file for upload
 	if err != nil {
 		return p.markProcessingFailed(ctx, trackID, fmt.Sprintf("failed to open compressed file: %v", err))
 	}
@@ -142,7 +142,7 @@ func (p *ProcessingService) downloadFile(ctx context.Context, url, filePath stri
 	// This is more efficient than HTTP download for files in the same project
 
 	// Create temp file
-	tempFile, err := os.Create(filePath)
+	tempFile, err := os.Create(filePath) // #nosec G304 -- Creating controlled temp file for processing
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -250,8 +250,8 @@ func (p *ProcessingService) ProcessCompression(ctx context.Context, trackID stri
 	compressedPath := filepath.Join(p.tempDir, fmt.Sprintf("%s_%s_compressed.%s", trackID, versionID, option.Format))
 
 	defer func() {
-		os.Remove(originalPath)
-		os.Remove(compressedPath)
+		_ = os.Remove(originalPath)   // #nosec G104 -- Cleanup operation, errors not critical
+		_ = os.Remove(compressedPath) // #nosec G104 -- Cleanup operation, errors not critical
 	}()
 
 	// Download original file from GCS
@@ -277,7 +277,7 @@ func (p *ProcessingService) ProcessCompression(ctx context.Context, trackID stri
 
 	// Upload compressed file to GCS
 	compressedObjectName := p.pathConfig.GetCompressedVersionPath(trackID, versionID, option.Format)
-	compressedFile, err := os.Open(compressedPath)
+	compressedFile, err := os.Open(compressedPath) // #nosec G304 -- Opening controlled temp file for upload
 	if err != nil {
 		return fmt.Errorf("failed to open compressed file: %v", err)
 	}
