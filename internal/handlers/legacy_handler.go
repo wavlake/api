@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wavlake/api/internal/models"
@@ -20,6 +22,36 @@ func NewLegacyHandler(postgresService services.PostgresServiceInterface) *Legacy
 	}
 }
 
+// isDatabaseError checks if the error is a database/SQL error vs user-not-found
+func isDatabaseError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// If it's sql.ErrNoRows, it's a legitimate "not found" case
+	if err == sql.ErrNoRows {
+		return false
+	}
+
+	errMsg := err.Error()
+	// Check for common database/SQL errors
+	databaseErrors := []string{
+		"relation", "does not exist",
+		"syntax error", "column", "unknown",
+		"connection", "timeout", "network",
+		"permission denied", "access denied",
+		"invalid", "constraint",
+	}
+
+	for _, dbErr := range databaseErrors {
+		if strings.Contains(strings.ToLower(errMsg), dbErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // UserMetadataResponse represents the complete user metadata response
 type UserMetadataResponse struct {
 	User    *models.LegacyUser    `json:"user"`
@@ -32,8 +64,6 @@ type UserMetadataResponse struct {
 // Returns all user metadata from the legacy PostgreSQL system
 func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 	firebaseUID := c.GetString("firebase_uid")
-	pubkey := c.GetString("pubkey")
-	log.Printf("Legacy Debug - pubkey: %s, firebase_uid: %s", pubkey, firebaseUID)
 
 	if firebaseUID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to find an associated Firebase UID"})
@@ -43,11 +73,19 @@ func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Get user data
-	log.Printf("Legacy Debug - Querying PostgreSQL for Firebase UID: %s", firebaseUID)
 	user, err := h.postgresService.GetUserByFirebaseUID(ctx, firebaseUID)
 	if err != nil {
-		log.Printf("Legacy Debug - GetUserByFirebaseUID error: %v", err)
-		// Return empty response for user not found
+		// Check if this is a database error vs user not found
+		if isDatabaseError(err) {
+			log.Printf("PostgreSQL error getting user %s: %v", firebaseUID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Database error occurred",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		// User not found - return empty response
 		response := UserMetadataResponse{
 			User:    nil,
 			Artists: []models.LegacyArtist{},
@@ -58,29 +96,44 @@ func (h *LegacyHandler) GetUserMetadata(c *gin.Context) {
 		return
 	}
 
-	// Get associated data (continue even if some fail)
+	// Get associated data (return error for database issues, empty arrays for no data)
 	artists, err := h.postgresService.GetUserArtists(ctx, firebaseUID)
 	if err != nil {
-		log.Printf("Legacy Debug - GetUserArtists error: %v", err)
+		if isDatabaseError(err) {
+			log.Printf("PostgreSQL error getting artists for user %s: %v", firebaseUID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Database error while fetching artists",
+				"details": err.Error(),
+			})
+			return
+		}
 		artists = []models.LegacyArtist{}
-	} else {
-		log.Printf("Legacy Debug - Found %d artists", len(artists))
 	}
 
 	albums, err := h.postgresService.GetUserAlbums(ctx, firebaseUID)
 	if err != nil {
-		log.Printf("Legacy Debug - GetUserAlbums error: %v", err)
+		if isDatabaseError(err) {
+			log.Printf("PostgreSQL error getting albums for user %s: %v", firebaseUID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Database error while fetching albums",
+				"details": err.Error(),
+			})
+			return
+		}
 		albums = []models.LegacyAlbum{}
-	} else {
-		log.Printf("Legacy Debug - Found %d albums", len(albums))
 	}
 
 	tracks, err := h.postgresService.GetUserTracks(ctx, firebaseUID)
 	if err != nil {
-		log.Printf("Legacy Debug - GetUserTracks error: %v", err)
+		if isDatabaseError(err) {
+			log.Printf("PostgreSQL error getting tracks for user %s: %v", firebaseUID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Database error while fetching tracks",
+				"details": err.Error(),
+			})
+			return
+		}
 		tracks = []models.LegacyTrack{}
-	} else {
-		log.Printf("Legacy Debug - Found %d tracks", len(tracks))
 	}
 
 	response := UserMetadataResponse{

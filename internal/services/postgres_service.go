@@ -30,6 +30,7 @@ func (p *PostgresService) GetUserByFirebaseUID(ctx context.Context, firebaseUID 
 		FROM user 
 		WHERE id = $1 AND NOT COALESCE(is_locked, false)
 	`
+	
 
 	var user models.LegacyUser
 	err := p.db.QueryRowContext(ctx, query, firebaseUID).Scan(
