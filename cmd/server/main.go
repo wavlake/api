@@ -136,6 +136,7 @@ func main() {
 	// Initialize middleware
 	firebaseMiddleware := auth.NewFirebaseMiddleware(firebaseAuth)
 	dualAuthMiddleware := auth.NewDualAuthMiddleware(firebaseAuth)
+	firebaseLinkGuard := auth.NewFirebaseLinkGuard(firestoreClient)
 	nip98Middleware, err := auth.NewNIP98Middleware(ctx, projectID)
 	if err != nil {
 		log.Fatalf("Failed to create NIP-98 middleware: %v", err)
@@ -233,8 +234,8 @@ func main() {
 		// Webhook endpoint for processing notifications
 		tracksGroup.POST("/webhook/process", tracksHandler.ProcessTrackWebhook)
 
-		// NIP-98 authenticated endpoints
-		tracksGroup.POST("/nostr", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// NIP-98 authenticated endpoints with Firebase link guard
+		tracksGroup.POST("/nostr", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Convert to Gin and call handler
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
@@ -242,8 +243,10 @@ func main() {
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
 				c.Set("pubkey", pubkey)
 			}
-			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-				c.Set("firebase_uid", firebaseUID)
+			// Apply Firebase link guard
+			firebaseLinkGuard.Middleware()(c)
+			if c.IsAborted() {
+				return
 			}
 			tracksHandler.CreateTrackNostr(c)
 		}))))
@@ -286,51 +289,59 @@ func main() {
 		}))))
 
 		// Manual processing trigger
-		tracksGroup.POST("/:id/process", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracksGroup.POST("/:id/process", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
 				c.Set("pubkey", pubkey)
 			}
-			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-				c.Set("firebase_uid", firebaseUID)
+			// Apply Firebase link guard
+			firebaseLinkGuard.Middleware()(c)
+			if c.IsAborted() {
+				return
 			}
 			tracksHandler.TriggerProcessing(c)
 		}))))
 
 		// Compression management endpoints
-		tracksGroup.POST("/:id/compress", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracksGroup.POST("/:id/compress", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
 				c.Set("pubkey", pubkey)
 			}
-			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-				c.Set("firebase_uid", firebaseUID)
+			// Apply Firebase link guard
+			firebaseLinkGuard.Middleware()(c)
+			if c.IsAborted() {
+				return
 			}
 			tracksHandler.RequestCompression(c)
 		}))))
 
-		tracksGroup.PUT("/:id/compression-visibility", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracksGroup.PUT("/:id/compression-visibility", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
 				c.Set("pubkey", pubkey)
 			}
-			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-				c.Set("firebase_uid", firebaseUID)
+			// Apply Firebase link guard
+			firebaseLinkGuard.Middleware()(c)
+			if c.IsAborted() {
+				return
 			}
 			tracksHandler.UpdateCompressionVisibility(c)
 		}))))
 
-		tracksGroup.GET("/:id/public-versions", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracksGroup.GET("/:id/public-versions", gin.WrapH(nip98Middleware.SignatureValidationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = r
 			if pubkey := r.Context().Value("pubkey"); pubkey != nil {
 				c.Set("pubkey", pubkey)
 			}
-			if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-				c.Set("firebase_uid", firebaseUID)
+			// Apply Firebase link guard
+			firebaseLinkGuard.Middleware()(c)
+			if c.IsAborted() {
+				return
 			}
 			tracksHandler.GetPublicVersions(c)
 		}))))
