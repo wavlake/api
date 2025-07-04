@@ -9,6 +9,12 @@ import (
 	"github.com/wavlake/api/internal/models"
 )
 
+// PostgreSQL Service for legacy database access
+//
+// IMPORTANT: The legacy database uses a table named "user" which is a PostgreSQL reserved keyword.
+// All queries referencing this table MUST use quoted identifiers: "user" (with quotes)
+// Failure to use quotes will result in cryptic "column does not exist" errors.
+
 type PostgresService struct {
 	db *sql.DB
 }
@@ -22,6 +28,9 @@ func NewPostgresService(db *sql.DB) *PostgresService {
 
 // GetUserByFirebaseUID retrieves a user by their Firebase UID
 func (p *PostgresService) GetUserByFirebaseUID(ctx context.Context, firebaseUID string) (*models.LegacyUser, error) {
+	// Note: "user" table name requires quotes because 'user' is a PostgreSQL reserved keyword.
+	// Without quotes, PostgreSQL interprets 'user' as a keyword rather than a table identifier,
+	// resulting in confusing "column does not exist" errors instead of the actual table access.
 	query := `
 		SELECT id, name, COALESCE(lightning_address, '') as lightning_address, 
 		       COALESCE(msat_balance, 0) as msat_balance, COALESCE(amp_msat, 1000) as amp_msat,
