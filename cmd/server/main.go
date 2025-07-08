@@ -141,6 +141,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create NIP-98 middleware: %v", err)
 	}
+	flexibleAuthMiddleware := auth.NewFlexibleAuthMiddleware(firebaseAuth, firestoreClient)
 
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(userService)
@@ -351,17 +352,7 @@ func main() {
 	if legacyHandler != nil {
 		legacyGroup := v1.Group("/legacy")
 		{
-			legacyGroup.GET("/metadata", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetUserMetadata(c)
-			}))))
+			legacyGroup.GET("/metadata", flexibleAuthMiddleware.Middleware(), legacyHandler.GetUserMetadata)
 
 			legacyGroup.GET("/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				c, _ := gin.CreateTestContext(w)
