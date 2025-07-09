@@ -165,13 +165,14 @@ func main() {
 	// Configure CORS
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{
-		"http://localhost:8080",          // Development
-		"http://localhost:3000",          // Alternative dev port
-		"http://localhost:8083",          // Another dev port
-		"https://wavlake.com",            // Production
-		"https://*.wavlake.com",          // Subdomains
-		"https://web-wavlake.vercel.app", // Vercel main deployment
-		"https://*.vercel.app",           // All Vercel preview deployments
+		"http://localhost:8080",                           // Development
+		"http://localhost:3000",                           // Alternative dev port
+		"http://localhost:8083",                           // Another dev port
+		"https://wavlake.com",                             // Production
+		"https://*.wavlake.com",                           // Subdomains
+		"https://web-wavlake.vercel.app",                  // Vercel main deployment
+		"https://web-git-auth-updates-wavlake.vercel.app", // Vercel auth-updates branch
+		"https://*.vercel.app",                            // All Vercel preview deployments
 	}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	config.AllowHeaders = []string{
