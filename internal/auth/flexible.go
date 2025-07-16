@@ -19,6 +19,14 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// NIP98AuthResult represents the result of NIP-98 authentication attempt
+type NIP98AuthResult struct {
+	Success     bool
+	FirebaseUID string
+	ErrorType   string
+	ErrorMsg    string
+}
+
 // FlexibleAuthMiddleware provides authentication via Firebase Bearer token or NIP-98 signature
 // with graceful fallback between the two methods
 type FlexibleAuthMiddleware struct {
@@ -53,17 +61,18 @@ func (m *FlexibleAuthMiddleware) Middleware() gin.HandlerFunc {
 		}
 
 		// Firebase failed, try NIP-98 signature authentication
-		if firebaseUID := m.tryNIP98Auth(c); firebaseUID != "" {
+		nip98Result := m.tryNIP98Auth(c)
+		if nip98Result.Success {
 			// NIP-98 auth successful
-			c.Set("firebase_uid", firebaseUID)
+			c.Set("firebase_uid", nip98Result.FirebaseUID)
 			c.Set("auth_method", "nip98")
 			c.Next()
 			return
 		}
 
-		// Both authentication methods failed
+		// Both authentication methods failed - provide specific error message
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Authentication required. Provide either a valid Firebase Bearer token or NIP-98 signature.",
+			"error": nip98Result.ErrorMsg,
 		})
 		c.Abort()
 	}
@@ -98,12 +107,16 @@ func (m *FlexibleAuthMiddleware) tryFirebaseAuth(c *gin.Context) string {
 }
 
 // tryNIP98Auth attempts to authenticate using NIP-98 signature
-// Returns firebase_uid on success, empty string on failure
-func (m *FlexibleAuthMiddleware) tryNIP98Auth(c *gin.Context) string {
+// Returns detailed result with success status and specific error information
+func (m *FlexibleAuthMiddleware) tryNIP98Auth(c *gin.Context) NIP98AuthResult {
 	// First validate the NIP-98 signature
 	pubkey := m.validateNIP98Signature(c.Request)
 	if pubkey == "" {
-		return ""
+		return NIP98AuthResult{
+			Success:   false,
+			ErrorType: "invalid_signature",
+			ErrorMsg:  "Invalid or missing NIP-98 signature",
+		}
 	}
 
 	// Look up the linked Firebase UID for this pubkey
@@ -111,12 +124,27 @@ func (m *FlexibleAuthMiddleware) tryNIP98Auth(c *gin.Context) string {
 	auth, err := m.getNostrAuth(ctx, pubkey)
 	if err != nil {
 		log.Printf("Failed to get auth for pubkey %s: %v", pubkey, err)
-		return ""
+		if err.Error() == "pubkey not found" {
+			return NIP98AuthResult{
+				Success:   false,
+				ErrorType: "pubkey_not_linked",
+				ErrorMsg:  "Nostr pubkey not linked to Firebase account. Please link your pubkey first.",
+			}
+		}
+		return NIP98AuthResult{
+			Success:   false,
+			ErrorType: "database_error",
+			ErrorMsg:  "Failed to verify account linking",
+		}
 	}
 
 	if !auth.Active {
 		log.Printf("Account inactive for pubkey %s", pubkey)
-		return ""
+		return NIP98AuthResult{
+			Success:   false,
+			ErrorType: "account_inactive",
+			ErrorMsg:  "Account is inactive",
+		}
 	}
 
 	// Store NIP-98 specific context
@@ -125,7 +153,10 @@ func (m *FlexibleAuthMiddleware) tryNIP98Auth(c *gin.Context) string {
 	// Update last used timestamp in background
 	go m.updateLastUsed(context.Background(), pubkey)
 
-	return auth.FirebaseUID
+	return NIP98AuthResult{
+		Success:     true,
+		FirebaseUID: auth.FirebaseUID,
+	}
 }
 
 // validateNIP98Signature validates the NIP-98 signature and returns the pubkey

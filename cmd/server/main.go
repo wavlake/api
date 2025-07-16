@@ -355,65 +355,15 @@ func main() {
 		{
 			legacyGroup.GET("/metadata", flexibleAuthMiddleware.Middleware(), legacyHandler.GetUserMetadata)
 
-			legacyGroup.GET("/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetUserTracks(c)
-			}))))
+			legacyGroup.GET("/tracks", flexibleAuthMiddleware.Middleware(), legacyHandler.GetUserTracks)
 
-			legacyGroup.GET("/artists", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetUserArtists(c)
-			}))))
+			legacyGroup.GET("/artists", flexibleAuthMiddleware.Middleware(), legacyHandler.GetUserArtists)
 
-			legacyGroup.GET("/albums", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetUserAlbums(c)
-			}))))
+			legacyGroup.GET("/albums", flexibleAuthMiddleware.Middleware(), legacyHandler.GetUserAlbums)
 
-			legacyGroup.GET("/artists/:artist_id/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetTracksByArtist(c)
-			}))))
+			legacyGroup.GET("/artists/:artist_id/tracks", flexibleAuthMiddleware.Middleware(), legacyHandler.GetTracksByArtist)
 
-			legacyGroup.GET("/albums/:album_id/tracks", gin.WrapH(nip98Middleware.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				c, _ := gin.CreateTestContext(w)
-				c.Request = r
-				if pubkey := r.Context().Value("pubkey"); pubkey != nil {
-					c.Set("pubkey", pubkey)
-				}
-				if firebaseUID := r.Context().Value("firebase_uid"); firebaseUID != nil {
-					c.Set("firebase_uid", firebaseUID)
-				}
-				legacyHandler.GetTracksByAlbum(c)
-			}))))
+			legacyGroup.GET("/albums/:album_id/tracks", flexibleAuthMiddleware.Middleware(), legacyHandler.GetTracksByAlbum)
 		}
 	}
 
@@ -437,12 +387,12 @@ func main() {
 	log.Printf("  GET  /v1/tracks/:id/public-versions (NIP-98 auth: Get public versions for Nostr)")
 
 	if legacyHandler != nil {
-		log.Printf("  GET  /v1/legacy/metadata (NIP-98 auth: Get all user metadata from legacy system)")
-		log.Printf("  GET  /v1/legacy/tracks (NIP-98 auth: Get user tracks from legacy system)")
-		log.Printf("  GET  /v1/legacy/artists (NIP-98 auth: Get user artists from legacy system)")
-		log.Printf("  GET  /v1/legacy/albums (NIP-98 auth: Get user albums from legacy system)")
-		log.Printf("  GET  /v1/legacy/artists/:artist_id/tracks (NIP-98 auth: Get tracks by artist)")
-		log.Printf("  GET  /v1/legacy/albums/:album_id/tracks (NIP-98 auth: Get tracks by album)")
+		log.Printf("  GET  /v1/legacy/metadata (Flexible auth: Get all user metadata from legacy system)")
+		log.Printf("  GET  /v1/legacy/tracks (Flexible auth: Get user tracks from legacy system)")
+		log.Printf("  GET  /v1/legacy/artists (Flexible auth: Get user artists from legacy system)")
+		log.Printf("  GET  /v1/legacy/albums (Flexible auth: Get user albums from legacy system)")
+		log.Printf("  GET  /v1/legacy/artists/:artist_id/tracks (Flexible auth: Get tracks by artist)")
+		log.Printf("  GET  /v1/legacy/albums/:album_id/tracks (Flexible auth: Get tracks by album)")
 	}
 
 	go func() {
