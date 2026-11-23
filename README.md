@@ -1,5 +1,7 @@
 # Wavlake API
 
+> **Historical.** Uses retired Nostr kinds. Current: https://dev.wavlake.com and https://wavlake.com/nostr-kinds.json.
+
 A GCP Cloud Run HTTP server that authenticates users via Firebase Auth and Nostr's NIP-98 HTTP auth spec.
 
 ## Features
